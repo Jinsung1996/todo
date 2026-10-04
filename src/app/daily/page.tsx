@@ -57,17 +57,17 @@ function DailyPageContent() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold">할 일</h1>
+      <h1 className="text-2xl font-bold text-ink">할 일</h1>
 
       <div className="flex gap-2">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => router.push(`/daily?status=${tab.key}`)}
-            className={`rounded px-3 py-1.5 text-sm ${
+            className={`rounded-sm px-3 py-1.5 text-sm ${
               status === tab.key
-                ? "bg-foreground text-background font-medium"
-                : "border border-black/[.1] dark:border-white/[.145]"
+                ? "bg-primary font-medium text-on-primary"
+                : "border border-hairline text-ink"
             }`}
           >
             {tab.label}
@@ -76,11 +76,11 @@ function DailyPageContent() {
       </div>
 
       {loading ? (
-        <p>불러오는 중...</p>
+        <p className="text-body-text">불러오는 중...</p>
       ) : (
         <>
           {todos.length > 0 && (
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted">
               {doneCount} / {todos.length} 완료
             </p>
           )}
@@ -91,10 +91,10 @@ function DailyPageContent() {
                 <li key={todo._id}>
                   <Link
                     href={`/todos/${todo._id}`}
-                    className={`flex items-center gap-3 rounded border px-4 py-3 hover:border-black/[.3] dark:hover:border-white/[.4] ${
+                    className={`flex items-center gap-3 rounded-md border px-4 py-3 transition-shadow hover:shadow-elevated ${
                       done
                         ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
-                        : "border-black/[.1] dark:border-white/[.145]"
+                        : "border-hairline"
                     }`}
                   >
                     <input
@@ -109,14 +109,14 @@ function DailyPageContent() {
                     />
                     <span
                       className={`flex-1 ${
-                        done ? "text-emerald-700 line-through dark:text-emerald-400" : ""
+                        done ? "text-emerald-700 line-through dark:text-emerald-400" : "text-ink"
                       }`}
                     >
                       {todo.title}
                     </span>
                     <span
                       className={`text-xs ${
-                        done ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500"
+                        done ? "text-emerald-600 dark:text-emerald-400" : "text-muted"
                       }`}
                     >
                       {todo.status}
@@ -126,7 +126,7 @@ function DailyPageContent() {
               );
             })}
             {todos.length === 0 && (
-              <p className="text-sm text-zinc-500">표시할 할일이 없습니다.</p>
+              <p className="text-sm text-muted">표시할 할일이 없습니다.</p>
             )}
           </ul>
         </>
@@ -137,7 +137,7 @@ function DailyPageContent() {
 
 export default function DailyPage() {
   return (
-    <Suspense fallback={<main className="p-8">불러오는 중...</main>}>
+    <Suspense fallback={<main className="p-8 text-body-text">불러오는 중...</main>}>
       <DailyPageContent />
     </Suspense>
   );

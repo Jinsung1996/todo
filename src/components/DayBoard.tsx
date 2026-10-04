@@ -38,17 +38,17 @@ function TodoCard({
           ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
           : undefined,
       }}
-      className={`flex cursor-grab items-center justify-between rounded-lg border border-white/40 bg-white/40 px-3 py-2 text-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/5 ${
+      className={`flex cursor-grab items-center justify-between rounded-md border border-hairline bg-canvas px-3 py-2 text-sm shadow-elevated ${
         isDragging ? "z-10 opacity-70" : ""
       }`}
     >
-      <span>{todo.title}</span>
+      <span className="text-ink">{todo.title}</span>
       <button
         onClick={(e) => {
           e.stopPropagation();
           onUnassign(todo._id);
         }}
-        className="text-xs text-zinc-500 hover:text-red-600"
+        className="text-xs text-muted hover:text-primary"
         title="이 날짜에서 빼기"
       >
         ✕
@@ -87,7 +87,7 @@ function Box({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[72px] flex-1 flex-col gap-2 rounded-xl border border-dashed p-3 ${style.base} ${
+      className={`flex min-h-[72px] flex-1 flex-col gap-2 rounded-md border p-3 ${style.base} ${
         isOver ? style.over : ""
       }`}
     >
@@ -96,7 +96,7 @@ function Box({
         <TodoCard key={todo._id} todo={todo} onUnassign={onUnassign} />
       ))}
       {todos.length === 0 && (
-        <p className="text-xs text-zinc-400">여기로 할일을 끌어다 놓으세요.</p>
+        <p className="text-xs text-muted-soft">여기로 할일을 끌어다 놓으세요.</p>
       )}
     </div>
   );

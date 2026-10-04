@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
-const PUBLIC_PREFIXES = ["/login", "/auth", "/_next", "/favicon.ico"];
+const PUBLIC_PREFIXES = ["/login", "/auth", "/_next", "/favicon.ico", "/api/test"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(

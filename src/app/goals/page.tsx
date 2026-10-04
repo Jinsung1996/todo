@@ -85,12 +85,9 @@ export default function GoalsPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">연간 목표</h1>
+        <h1 className="text-2xl font-bold text-ink">연간 목표</h1>
         {goals.length > 0 && (
-          <button
-            onClick={toggleSelectMode}
-            className="text-sm text-zinc-500 hover:underline"
-          >
+          <button onClick={toggleSelectMode} className="text-sm text-muted hover:text-primary">
             {selectMode ? "취소" : "여러 개 삭제"}
           </button>
         )}
@@ -98,34 +95,34 @@ export default function GoalsPage() {
 
       <form onSubmit={createGoal} className="flex gap-2">
         <input
-          className="flex-1 rounded border border-black/[.1] px-3 py-2 dark:border-white/[.145]"
+          className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
           placeholder="목표 제목"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
         <input
           type="number"
-          className="w-24 rounded border border-black/[.1] px-3 py-2 dark:border-white/[.145]"
+          className="w-24 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
         />
         <button
           type="submit"
-          className="rounded bg-foreground px-4 py-2 text-background"
+          className="rounded-sm bg-primary px-4 py-2 font-medium text-on-primary hover:bg-primary-active"
         >
           추가
         </button>
       </form>
 
       {selectMode && (
-        <div className="flex items-center justify-between rounded border border-black/[.1] px-4 py-2 text-sm dark:border-white/[.145]">
-          <button onClick={toggleSelectAll} className="text-zinc-500 hover:underline">
+        <div className="flex items-center justify-between rounded-md border border-hairline px-4 py-2 text-sm">
+          <button onClick={toggleSelectAll} className="text-muted hover:text-primary">
             {selected.size === goals.length ? "전체 해제" : "전체 선택"}
           </button>
           <button
             onClick={deleteSelected}
             disabled={selected.size === 0}
-            className="rounded bg-red-600 px-3 py-1.5 text-white disabled:opacity-40"
+            className="rounded-sm bg-error px-3 py-1.5 text-on-primary hover:bg-error-hover disabled:opacity-40"
           >
             선택 삭제 ({selected.size})
           </button>
@@ -133,13 +130,13 @@ export default function GoalsPage() {
       )}
 
       {loading ? (
-        <p>불러오는 중...</p>
+        <p className="text-body-text">불러오는 중...</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {goals.map((goal) => (
             <li
               key={goal._id}
-              className="flex items-center justify-between rounded border border-black/[.1] px-4 py-3 dark:border-white/[.145]"
+              className="flex items-center justify-between rounded-md border border-hairline px-4 py-3 transition-shadow hover:shadow-elevated"
             >
               {selectMode ? (
                 <label className="flex flex-1 items-center gap-3">
@@ -147,19 +144,20 @@ export default function GoalsPage() {
                     type="checkbox"
                     checked={selected.has(goal._id)}
                     onChange={() => toggleSelected(goal._id)}
+                    className="accent-primary"
                   />
-                  <span className="font-medium">{goal.title}</span>{" "}
-                  <span className="text-sm text-zinc-500">{goal.year}</span>
+                  <span className="font-medium text-ink">{goal.title}</span>{" "}
+                  <span className="text-sm text-muted">{goal.year}</span>
                 </label>
               ) : (
                 <>
                   <Link href={`/goals/${goal._id}`} className="flex-1">
-                    <span className="font-medium">{goal.title}</span>{" "}
-                    <span className="text-sm text-zinc-500">{goal.year}</span>
+                    <span className="font-medium text-ink">{goal.title}</span>{" "}
+                    <span className="text-sm text-muted">{goal.year}</span>
                   </Link>
                   <button
                     onClick={() => deleteGoal(goal._id)}
-                    className="text-sm text-red-600"
+                    className="text-sm text-error hover:text-error-hover"
                   >
                     삭제
                   </button>
@@ -168,7 +166,7 @@ export default function GoalsPage() {
             </li>
           ))}
           {goals.length === 0 && (
-            <p className="text-sm text-zinc-500">아직 등록된 목표가 없습니다.</p>
+            <p className="text-sm text-muted">아직 등록된 목표가 없습니다.</p>
           )}
         </ul>
       )}

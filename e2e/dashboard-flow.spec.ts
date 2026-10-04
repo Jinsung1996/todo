@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { deleteGoalByTitle } from "./helpers";
+import { deleteGoalByTitle, loginAsTestUser } from "./helpers";
 
 test("대시보드/보드에서 클릭으로 할일 상세로 이동하고 상태를 변경한다", async ({ page }) => {
   const unique = Date.now();
 
+  await loginAsTestUser(page);
   await page.goto("/goals");
   await page.getByPlaceholder("목표 제목").fill(`클릭 목표 ${unique}`);
   await page.getByRole("button", { name: "추가" }).click();
@@ -27,9 +28,9 @@ test("대시보드/보드에서 클릭으로 할일 상세로 이동하고 상�
   await expect(page.getByText(`${unique}`.length ? `클릭 목표 ${unique} / 클릭 주간계획 ${unique}` : "")).toBeVisible();
 
   await page.getByRole("button", { name: "완료" }).click();
-  await expect(page.getByRole("button", { name: "완료" })).toHaveClass(/bg-foreground/);
+  await expect(page.getByRole("button", { name: "완료" })).toHaveClass(/bg-primary/);
   await page.reload();
-  await expect(page.getByRole("button", { name: "완료" })).toHaveClass(/bg-foreground/);
+  await expect(page.getByRole("button", { name: "완료" })).toHaveClass(/bg-primary/);
 
   // Dashboard: goal and (non-done) todo lists are clickable through to their detail pages.
   await page.goto("/");

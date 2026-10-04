@@ -103,8 +103,8 @@ export default function CalendarPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
       <div>
-        <h1 className="text-2xl font-semibold">캘린더</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-2xl font-bold text-ink">캘린더</h1>
+        <p className="text-sm text-muted">
           날짜를 클릭해 그날의 할일을 정하고, 완료한 일은 끌어다 놓으세요.
         </p>
       </div>
@@ -112,14 +112,14 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => setWeekOffset((w) => w - 1)}
-          className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+          className="rounded-sm px-2 py-1 text-sm text-muted hover:bg-surface-soft"
         >
           ← 이전 주
         </button>
-        <span className="text-sm text-zinc-500">{selectedLabel}</span>
+        <span className="text-sm text-muted">{selectedLabel}</span>
         <button
           onClick={() => setWeekOffset((w) => w + 1)}
-          className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-black/[.04] dark:hover:bg-white/[.08]"
+          className="rounded-sm px-2 py-1 text-sm text-muted hover:bg-surface-soft"
         >
           다음 주 →
         </button>
@@ -135,18 +135,18 @@ export default function CalendarPage() {
             <button
               key={key}
               onClick={() => setSelectedDate(key)}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-3 text-sm transition-colors ${
                 isSelected
-                  ? "border-emerald-600 bg-emerald-500 text-white"
-                  : "border-black/[.1] hover:bg-black/[.04] dark:border-white/[.15] dark:hover:bg-white/[.08]"
-              } ${isToday && !isSelected ? "ring-2 ring-emerald-400" : ""}`}
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-hairline text-ink hover:bg-surface-soft"
+              } ${isToday && !isSelected ? "ring-2 ring-primary" : ""}`}
             >
               <span className="text-xs opacity-80">{DAY_LABELS[i]}</span>
               <span className="font-medium">{date.getDate()}</span>
               {count > 0 && (
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
-                    isSelected ? "bg-white" : "bg-emerald-500"
+                    isSelected ? "bg-on-primary" : "bg-primary"
                   }`}
                 />
               )}
@@ -157,7 +157,7 @@ export default function CalendarPage() {
 
       <div className="flex gap-2">
         <select
-          className="flex-1 rounded border border-black/[.1] px-3 py-2 text-sm dark:border-white/[.145] dark:bg-black"
+          className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-sm text-ink focus:border-2 focus:border-ink focus:outline-none"
           value={pickerTodoId}
           onChange={(e) => setPickerTodoId(e.target.value)}
         >
@@ -171,14 +171,14 @@ export default function CalendarPage() {
         <button
           onClick={assignToDay}
           disabled={!pickerTodoId}
-          className="rounded bg-foreground px-4 py-2 text-background disabled:opacity-40"
+          className="rounded-sm bg-primary px-4 py-2 font-medium text-on-primary hover:bg-primary-active disabled:opacity-40"
         >
           추가
         </button>
       </div>
 
       {loading ? (
-        <p>불러오는 중...</p>
+        <p className="text-body-text">불러오는 중...</p>
       ) : (
         <DayBoard todos={dayTodos} onMove={moveStatus} onUnassign={unassign} />
       )}

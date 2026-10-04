@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { deleteGoalByTitle, dragElementTo } from "./helpers";
+import { deleteGoalByTitle, dragElementTo, loginAsTestUser } from "./helpers";
 
 test("캘린더에서 할일을 그날에 배정하고 드래그로 완료 처리한다", async ({ page }) => {
   const unique = Date.now();
@@ -7,6 +7,7 @@ test("캘린더에서 할일을 그날에 배정하고 드래그로 완료 처�
   const weekName = `캘린더 주간계획 ${unique}`;
   const todoName = `캘린더 할일 ${unique}`;
 
+  await loginAsTestUser(page);
   await page.goto("/goals");
   await page.getByPlaceholder("목표 제목").fill(goalName);
   await page.getByRole("button", { name: "추가" }).click();

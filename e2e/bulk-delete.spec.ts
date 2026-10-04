@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { deleteGoalByTitle } from "./helpers";
+import { deleteGoalByTitle, loginAsTestUser } from "./helpers";
 
 test("체크박스로 여러 목표를 한 번에 선택해 삭제한다", async ({ page }) => {
   const unique = Date.now();
   const names = [`벌크 목표 A ${unique}`, `벌크 목표 B ${unique}`, `벌크 목표 C ${unique}`];
 
+  await loginAsTestUser(page);
   await page.goto("/goals");
   for (const name of names) {
     await page.getByPlaceholder("목표 제목").fill(name);

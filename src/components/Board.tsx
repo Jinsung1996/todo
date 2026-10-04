@@ -40,7 +40,7 @@ function TodoCard({
           ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
           : undefined,
       }}
-      className={`flex items-center justify-between rounded border border-black/[.1] bg-white px-3 py-2 text-sm shadow-sm dark:border-white/[.145] dark:bg-zinc-900 ${
+      className={`flex items-center justify-between rounded-md border border-hairline bg-canvas px-3 py-2 text-sm shadow-elevated ${
         isDragging ? "z-10 opacity-70" : ""
       }`}
     >
@@ -51,7 +51,7 @@ function TodoCard({
           e.stopPropagation();
           onOpen(todo._id);
         }}
-        className="cursor-pointer hover:underline"
+        className="cursor-pointer text-ink hover:underline"
       >
         {todo.title}
       </span>
@@ -60,7 +60,7 @@ function TodoCard({
           e.stopPropagation();
           onDelete(todo._id);
         }}
-        className="text-xs text-red-600"
+        className="text-xs text-muted hover:text-primary"
       >
         삭제
       </button>
@@ -86,11 +86,11 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[200px] flex-1 flex-col gap-2 rounded-lg border border-black/[.08] p-3 dark:border-white/[.145] ${
-        isOver ? "bg-black/[.03] dark:bg-white/[.06]" : ""
+      className={`flex min-h-[200px] flex-1 flex-col gap-2 rounded-md border border-hairline-soft p-3 ${
+        isOver ? "bg-surface-soft" : ""
       }`}
     >
-      <h3 className="text-sm font-semibold text-zinc-500">{label}</h3>
+      <h3 className="text-sm font-semibold text-muted">{label}</h3>
       {todos.map((todo) => (
         <TodoCard key={todo._id} todo={todo} onOpen={onOpen} onDelete={onDelete} />
       ))}

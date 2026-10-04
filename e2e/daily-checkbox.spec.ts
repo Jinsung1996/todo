@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { deleteGoalByTitle } from "./helpers";
+import { deleteGoalByTitle, loginAsTestUser } from "./helpers";
 
 test("할 일 목록에서 체크박스로 완료 표시하면 초록색으로 바뀐다", async ({ page }) => {
   const unique = Date.now();
@@ -7,6 +7,7 @@ test("할 일 목록에서 체크박스로 완료 표시하면 초록색으로 �
   const weekName = `체크 주간계획 ${unique}`;
   const todoName = `체크 할일 ${unique}`;
 
+  await loginAsTestUser(page);
   await page.goto("/goals");
   await page.getByPlaceholder("목표 제목").fill(goalName);
   await page.getByRole("button", { name: "추가" }).click();

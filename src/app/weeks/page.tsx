@@ -20,10 +20,10 @@ export default function WeeksPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold">주간 계획</h1>
+      <h1 className="text-2xl font-bold text-ink">주간 계획</h1>
 
       {loading ? (
-        <p>불러오는 중...</p>
+        <p className="text-body-text">불러오는 중...</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {weeks.map((week) => {
@@ -33,11 +33,11 @@ export default function WeeksPage() {
               <li key={week._id}>
                 <Link
                   href={`/goals/${goalId}/weeks/${week._id}`}
-                  className="flex flex-col gap-2 rounded border border-black/[.1] px-4 py-3 hover:border-black/[.3] dark:border-white/[.145] dark:hover:border-white/[.4]"
+                  className="flex flex-col gap-2 rounded-md border border-hairline px-4 py-3 transition-shadow hover:shadow-elevated"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{week.title}</span>
-                    <span className="text-sm text-zinc-500">
+                    <span className="font-medium text-ink">{week.title}</span>
+                    <span className="text-sm text-muted">
                       {typeof goal === "string" ? "" : goal.title}
                     </span>
                   </div>
@@ -47,7 +47,7 @@ export default function WeeksPage() {
             );
           })}
           {weeks.length === 0 && (
-            <p className="text-sm text-zinc-500">아직 등록된 주간계획이 없습니다.</p>
+            <p className="text-sm text-muted">아직 등록된 주간계획이 없습니다.</p>
           )}
         </ul>
       )}

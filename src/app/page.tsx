@@ -30,7 +30,7 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <main className="p-8">불러오는 중...</main>;
+    return <main className="p-8 text-body-text">불러오는 중...</main>;
   }
 
   const thisWeekCount = weeks.filter(isThisWeek).length;
@@ -40,7 +40,7 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-8">
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted">
         1년 목표 -&gt; 이번 주 계획 -&gt; 오늘의 할 일을 한 화면에서
       </p>
 
@@ -52,41 +52,41 @@ export default function DashboardPage() {
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-zinc-500">1년 목표</h2>
+        <h2 className="text-sm font-semibold text-muted">1년 목표</h2>
         <ul className="flex flex-col gap-2">
           {recentGoals.map((goal) => (
             <li key={goal._id}>
               <Link
                 href={`/goals/${goal._id}`}
-                className="flex items-center justify-between rounded border border-black/[.1] px-4 py-3 text-sm hover:border-black/[.3] dark:border-white/[.145] dark:hover:border-white/[.4]"
+                className="flex items-center justify-between rounded-md border border-hairline px-4 py-3 text-sm transition-shadow hover:shadow-elevated"
               >
-                <span className="font-medium">{goal.title}</span>
-                <span className="text-zinc-500">{goal.year}</span>
+                <span className="font-medium text-ink">{goal.title}</span>
+                <span className="text-muted">{goal.year}</span>
               </Link>
             </li>
           ))}
           {recentGoals.length === 0 && (
-            <p className="text-sm text-zinc-500">아직 등록된 목표가 없습니다.</p>
+            <p className="text-sm text-muted">아직 등록된 목표가 없습니다.</p>
           )}
         </ul>
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-zinc-500">오늘의 할 일</h2>
+        <h2 className="text-sm font-semibold text-muted">오늘의 할 일</h2>
         <ul className="flex flex-col gap-2">
           {activeTodos.map((todo) => (
             <li key={todo._id}>
               <Link
                 href={`/todos/${todo._id}`}
-                className="flex items-center justify-between rounded border border-black/[.1] px-4 py-3 text-sm hover:border-black/[.3] dark:border-white/[.145] dark:hover:border-white/[.4]"
+                className="flex items-center justify-between rounded-md border border-hairline px-4 py-3 text-sm transition-shadow hover:shadow-elevated"
               >
-                <span>{todo.title}</span>
-                <span className="text-xs text-zinc-500">{todo.status}</span>
+                <span className="text-ink">{todo.title}</span>
+                <span className="text-xs text-muted">{todo.status}</span>
               </Link>
             </li>
           ))}
           {activeTodos.length === 0 && (
-            <p className="text-sm text-zinc-500">완료하지 않은 할일이 없습니다.</p>
+            <p className="text-sm text-muted">완료하지 않은 할일이 없습니다.</p>
           )}
         </ul>
       </section>

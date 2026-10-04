@@ -22,6 +22,11 @@ export async function dragElementTo(page: Page, source: Locator, target: Locator
   await page.mouse.up();
 }
 
+export async function loginAsTestUser(page: Page) {
+  const res = await page.request.post("/api/test/login");
+  if (!res.ok()) throw new Error("test login failed");
+}
+
 export async function deleteGoalByTitle(page: Page, title: string) {
   const res = await page.request.get("/api/goals");
   const goals: { _id: string; title: string }[] = await res.json();

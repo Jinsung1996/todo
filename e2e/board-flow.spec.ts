@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { deleteGoalByTitle } from "./helpers";
+import { deleteGoalByTitle, loginAsTestUser } from "./helpers";
 
 async function dragCardToColumn(page: Page, cardText: string, columnLabel: string) {
   const card = page.getByText(cardText, { exact: true });
@@ -30,6 +30,7 @@ async function dragCardToColumn(page: Page, cardText: string, columnLabel: strin
 test("할일 생성 → 보드에서 드래그로 done 이동 → 주간 진행률 상승", async ({ page }) => {
   const unique = Date.now();
 
+  await loginAsTestUser(page);
   await page.goto("/goals");
   await page.getByPlaceholder("목표 제목").fill(`e2e 목표 ${unique}`);
   await page.getByRole("button", { name: "추가" }).click();
@@ -65,6 +66,7 @@ test("할일 생성 → 보드에서 드래그로 done 이동 → 주간 진행�
 test("네트워크 실패 시 드래그가 롤백된다", async ({ page }) => {
   const unique = Date.now();
 
+  await loginAsTestUser(page);
   await page.goto("/goals");
   await page.getByPlaceholder("목표 제목").fill(`e2e 롤백 목표 ${unique}`);
   await page.getByRole("button", { name: "추가" }).click();

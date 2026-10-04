@@ -86,32 +86,32 @@ export default function WeekBoardPage() {
     }
   }
 
-  if (loading) return <main className="p-8">불러오는 중...</main>;
-  if (!week) return <main className="p-8">주간계획을 찾을 수 없습니다.</main>;
+  if (loading) return <main className="p-8 text-body-text">불러오는 중...</main>;
+  if (!week) return <main className="p-8 text-body-text">주간계획을 찾을 수 없습니다.</main>;
 
   const progress = weeklyProgress(todos);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-8">
       <div>
-        <Link href={`/goals/${goalId}`} className="text-sm text-zinc-500">
+        <Link href={`/goals/${goalId}`} className="text-sm text-muted">
           ← 목표로 돌아가기
         </Link>
-        <h1 className="text-2xl font-semibold">{week.title}</h1>
+        <h1 className="text-2xl font-bold text-ink">{week.title}</h1>
       </div>
 
       <ProgressBar percent={progress} />
 
       <form onSubmit={createTodo} className="flex gap-2">
         <input
-          className="flex-1 rounded border border-black/[.1] px-3 py-2 dark:border-white/[.145]"
+          className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
           placeholder="할일 제목"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
         <button
           type="submit"
-          className="rounded bg-foreground px-4 py-2 text-background"
+          className="rounded-sm bg-primary px-4 py-2 font-medium text-on-primary hover:bg-primary-active"
         >
           추가
         </button>
