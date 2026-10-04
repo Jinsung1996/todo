@@ -30,6 +30,22 @@ GITHUB_CLIENT_SECRET=<위에서 복사한 Client Secret>
 `.env.local`은 `.gitignore`에 포함되어 있어 깃에 커밋되지 않습니다.
 템플릿은 `.env.local.example`을 참고하세요.
 
+## 2-1. 배포 환경(Vercel 등)에서는 `APP_URL`도 설정하세요
+
+Vercel처럼 프록시 뒤에서 실행되는 환경에서는, 요청 주소로부터 콜백 URL을 자동
+계산하는 과정에서 프로토콜(http/https)이나 호스트가 GitHub에 등록한 값과 미묘하게
+달라질 수 있습니다. 그러면 GitHub이 `The redirect_uri is not associated with this
+application` 에러를 띄웁니다.
+
+이를 피하려면 배포 환경의 환경변수에 `APP_URL`을 명시적으로 추가하세요 (끝에 `/`
+없이):
+
+```bash
+APP_URL=https://your-app.vercel.app
+```
+
+로컬 개발에서는 설정하지 않아도 됩니다 (자동으로 `http://localhost:3000`을 사용).
+
 ## 3. 동작 확인
 
 1. `npm run dev`로 개발 서버 실행

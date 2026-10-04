@@ -3,6 +3,7 @@ import { dbConnect } from "@/lib/mongodb";
 import { createSession, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { exchangeCodeForToken, fetchGithubUser } from "@/lib/github";
 import { claimOrphanTodos } from "@/lib/migration";
+import { getAppUrl } from "@/lib/appUrl";
 import User from "@/models/User";
 import { OAUTH_STATE_COOKIE_NAME } from "@/app/auth/github/route";
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 
   const { token, expiresAt } = await createSession(String(user._id));
 
-  const response = NextResponse.redirect(new URL("/", request.url));
+  const response = NextResponse.redirect(new URL("/", getAppUrl(request)));
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
