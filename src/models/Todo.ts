@@ -18,6 +18,8 @@ const TodoSchema = new Schema(
       required: true,
     },
     scheduledDate: { type: String, required: false }, // local date key, e.g. "2026-03-05"
+    startTime: { type: String, required: false }, // "HH:mm", 24h local time; set once scheduledDate is
+    durationMinutes: { type: Number, required: false, default: 60 }, // block length in the week calendar
     userId: { type: Schema.Types.ObjectId, ref: "User", required: false }, // unset = legacy, pre-auth
   },
   { timestamps: true }

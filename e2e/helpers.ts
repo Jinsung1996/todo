@@ -22,6 +22,23 @@ export async function dragElementTo(page: Page, source: Locator, target: Locator
   await page.mouse.up();
 }
 
+/** Drags `source` by a fixed pixel offset, for grids with no separate drop target. */
+export async function dragElementBy(page: Page, source: Locator, dx: number, dy: number) {
+  const sourceBox = await source.boundingBox();
+  if (!sourceBox) throw new Error("could not locate drag source");
+
+  const startX = sourceBox.x + sourceBox.width / 2;
+  const startY = sourceBox.y + sourceBox.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  const steps = 8;
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(startX + (dx * i) / steps, startY + (dy * i) / steps);
+  }
+  await page.mouse.up();
+}
+
 export async function loginAsTestUser(page: Page) {
   const res = await page.request.post("/api/test/login");
   if (!res.ok()) throw new Error("test login failed");
@@ -34,4 +51,10 @@ export async function deleteGoalByTitle(page: Page, title: string) {
   if (goal) {
     await page.request.delete(`/api/goals/${goal._id}`);
   }
+}
+
+export async function findTodoByTitle(page: Page, title: string) {
+  const res = await page.request.get("/api/todos");
+  const todos: { _id: string; title: string; startTime?: string | null }[] = await res.json();
+  return todos.find((t) => t.title === title);
 }

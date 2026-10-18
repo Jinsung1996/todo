@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { DayBoard } from "@/components/DayBoard";
+import { useState } from "react";
+import { WeekCalendar } from "@/components/WeekCalendar";
+import { useTodos } from "@/lib/useTodos";
 import { dateKey, startOfWeek } from "@/lib/week";
-import type { Todo, TodoStatus } from "@/types";
-
-const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
 function addDays(d: Date, n: number): Date {
   const date = new Date(d);
@@ -15,97 +13,41 @@ function addDays(d: Date, n: number): Date {
 
 export default function CalendarPage() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(dateKey());
-  const [allTodos, setAllTodos] = useState<Todo[]>([]);
-  const [dayTodos, setDayTodos] = useState<Todo[]>([]);
+  const { todos, loading, moveTodo, toggleDone, unassign, assignToDay } = useTodos();
   const [pickerTodoId, setPickerTodoId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [pickerDate, setPickerDate] = useState(dateKey());
+  // Tracks the week we last defaulted pickerDate for, so switching weeks
+  // resets it (without an effect — adjusted directly during render, per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-based-on-a-prop-change).
+  const [pickerWeekOffset, setPickerWeekOffset] = useState(weekOffset);
 
   const weekStart = startOfWeek(addDays(new Date(), weekOffset * 7));
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekKeys = weekDays.map((d) => dateKey(d));
 
-  async function loadAll() {
-    const res = await fetch("/api/todos");
-    setAllTodos(await res.json());
+  if (weekOffset !== pickerWeekOffset) {
+    setPickerWeekOffset(weekOffset);
+    // Default the picker's target day to today when it's in view, otherwise
+    // the week's Monday.
+    setPickerDate(weekKeys.includes(dateKey()) ? dateKey() : weekKeys[0]);
   }
 
-  async function loadDay(date: string) {
-    const res = await fetch(`/api/todos?scheduledDate=${date}`);
-    setDayTodos(await res.json());
-  }
+  const unscheduled = todos.filter((t) => !t.scheduledDate);
 
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([loadAll(), loadDay(selectedDate)]).then(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadDay(selectedDate);
-  }, [selectedDate]);
-
-  function countFor(date: string): number {
-    return allTodos.filter((t) => t.scheduledDate === date).length;
-  }
-
-  async function assignToDay() {
+  async function handleAssign() {
     if (!pickerTodoId) return;
-    await fetch(`/api/todos/${pickerTodoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scheduledDate: selectedDate }),
-    });
+    await assignToDay(pickerTodoId, pickerDate);
     setPickerTodoId("");
-    await Promise.all([loadAll(), loadDay(selectedDate)]);
-  }
-
-  async function unassign(todoId: string) {
-    await fetch(`/api/todos/${todoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scheduledDate: null }),
-    });
-    await Promise.all([loadAll(), loadDay(selectedDate)]);
-  }
-
-  async function moveStatus(todoId: string, status: TodoStatus) {
-    const previous = dayTodos;
-    setDayTodos((prev) =>
-      prev.map((t) => (t._id === todoId ? { ...t, status } : t))
-    );
-    try {
-      const res = await fetch(`/api/todos/${todoId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error("move failed");
-    } catch {
-      setDayTodos(previous);
-    } finally {
-      loadAll();
-    }
   }
 
   const selectedLabel = `${weekDays[0].getFullYear()}.${weekDays[0].getMonth() + 1}.${weekDays[0].getDate()} ~ ${weekDays[6].getMonth() + 1}.${weekDays[6].getDate()}`;
 
-  // Candidates for the picker: any todo, annotated with its current schedule so
-  // re-assigning (moving it from another day) is an informed choice, not a surprise.
-  const pickerOptions = allTodos.map((t) => {
-    const suffix =
-      t.scheduledDate === selectedDate
-        ? " (이미 이 날)"
-        : t.scheduledDate
-          ? ` (${t.scheduledDate} 배정됨)`
-          : "";
-    return { id: t._id, label: `${t.title}${suffix}` };
-  });
-
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-8">
       <div>
         <h1 className="text-2xl font-bold text-ink">캘린더</h1>
         <p className="text-sm text-muted">
-          날짜를 클릭해 그날의 할일을 정하고, 완료한 일은 끌어다 놓으세요.
+          할일을 이 주에 배정하면 자동으로 빈 시간에 들어가고, 칸 안에서 끌어다 시간이나 날짜를 바꿀 수 있어요.
         </p>
       </div>
 
@@ -125,51 +67,32 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      <div className="flex justify-between gap-2">
-        {weekDays.map((date, i) => {
-          const key = dateKey(date);
-          const isSelected = key === selectedDate;
-          const isToday = key === dateKey();
-          const count = countFor(key);
-          return (
-            <button
-              key={key}
-              onClick={() => setSelectedDate(key)}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-3 text-sm transition-colors ${
-                isSelected
-                  ? "border-primary bg-primary text-on-primary"
-                  : "border-hairline text-ink hover:bg-surface-soft"
-              } ${isToday && !isSelected ? "ring-2 ring-primary" : ""}`}
-            >
-              <span className="text-xs opacity-80">{DAY_LABELS[i]}</span>
-              <span className="font-medium">{date.getDate()}</span>
-              {count > 0 && (
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    isSelected ? "bg-on-primary" : "bg-primary"
-                  }`}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="flex gap-2">
         <select
           className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-sm text-ink focus:border-2 focus:border-ink focus:outline-none"
           value={pickerTodoId}
           onChange={(e) => setPickerTodoId(e.target.value)}
         >
-          <option value="">이 날에 추가할 할일 선택...</option>
-          {pickerOptions.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {opt.label}
+          <option value="">이 주에 추가할 할일 선택...</option>
+          {unscheduled.map((t) => (
+            <option key={t._id} value={t._id}>
+              {t.title}
+            </option>
+          ))}
+        </select>
+        <select
+          className="rounded-sm border border-hairline bg-canvas px-3 py-2 text-sm text-ink focus:border-2 focus:border-ink focus:outline-none"
+          value={pickerDate}
+          onChange={(e) => setPickerDate(e.target.value)}
+        >
+          {weekDays.map((d, i) => (
+            <option key={weekKeys[i]} value={weekKeys[i]}>
+              {["월", "화", "수", "목", "금", "토", "일"][i]} {d.getMonth() + 1}/{d.getDate()}
             </option>
           ))}
         </select>
         <button
-          onClick={assignToDay}
+          onClick={handleAssign}
           disabled={!pickerTodoId}
           className="rounded-sm bg-primary px-4 py-2 font-medium text-on-primary hover:bg-primary-active disabled:opacity-40"
         >
@@ -180,7 +103,15 @@ export default function CalendarPage() {
       {loading ? (
         <p className="text-body-text">불러오는 중...</p>
       ) : (
-        <DayBoard todos={dayTodos} onMove={moveStatus} onUnassign={unassign} />
+        <div className="overflow-x-auto rounded-md border border-hairline p-2">
+          <WeekCalendar
+            weekDays={weekDays}
+            todos={todos.filter((t) => t.scheduledDate && weekKeys.includes(t.scheduledDate))}
+            onMoveTodo={moveTodo}
+            onToggleDone={toggleDone}
+            onUnassign={unassign}
+          />
+        </div>
       )}
     </main>
   );

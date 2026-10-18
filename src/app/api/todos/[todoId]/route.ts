@@ -5,6 +5,9 @@ import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
+import { DEFAULT_DURATION_MINUTES, nextAvailableSlot } from "@/lib/schedule";
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 type Params = { params: Promise<{ todoId: string }> };
 
@@ -40,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
-  const { title, description, status, scheduledDate } = parsed.data;
+  const { title, description, status, scheduledDate, startTime, durationMinutes } = parsed.data;
 
   const update: Record<string, unknown> = {};
   if (title !== undefined) {
@@ -61,9 +64,40 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
     update.status = status;
   }
+  if (durationMinutes !== undefined) {
+    if (
+      typeof durationMinutes !== "number" ||
+      !Number.isFinite(durationMinutes) ||
+      durationMinutes < 15 ||
+      durationMinutes > 24 * 60
+    ) {
+      return NextResponse.json(
+        { error: "durationMinutes must be a number of minutes between 15 and 1440" },
+        { status: 400 }
+      );
+    }
+    update.durationMinutes = durationMinutes;
+  }
+  if (startTime !== undefined) {
+    if (startTime !== null && (typeof startTime !== "string" || !TIME_RE.test(startTime))) {
+      return NextResponse.json(
+        { error: "startTime must be an HH:mm string or null" },
+        { status: 400 }
+      );
+    }
+    update.startTime = startTime;
+  }
+
+  // Scheduling a todo onto a day (and leaving its time unspecified) auto-fills
+  // the next open slot in the week calendar's time grid, like writing it on
+  // the next empty line of a notepad — the user doesn't have to hand-place it.
+  let autoSlotDate: string | null = null;
   if (scheduledDate !== undefined) {
     if (scheduledDate === null) {
       update.scheduledDate = null;
+      // A todo with no day shouldn't keep a stale time slot, unless the
+      // caller explicitly set one in this same request.
+      if (startTime === undefined) update.startTime = null;
     } else if (typeof scheduledDate !== "string" || Number.isNaN(Date.parse(scheduledDate))) {
       return NextResponse.json(
         { error: "scheduledDate must be a valid date string or null" },
@@ -71,10 +105,40 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       );
     } else {
       update.scheduledDate = scheduledDate;
+      if (startTime === undefined) autoSlotDate = scheduledDate;
     }
   }
 
   await dbConnect();
+
+  if (autoSlotDate) {
+    const current = await Todo.findOne({ _id: todoId, userId: user._id }).select(
+      "startTime durationMinutes"
+    );
+    if (!current) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+    // Only auto-place a todo that doesn't already have a time — moving an
+    // already-scheduled todo to a different day keeps its existing time.
+    if (!current.startTime) {
+      const siblings = await Todo.find({
+        scheduledDate: autoSlotDate,
+        userId: user._id,
+        _id: { $ne: todoId },
+        startTime: { $ne: null },
+      }).select("startTime durationMinutes");
+      update.startTime = nextAvailableSlot(
+        siblings.map((t) => ({
+          startTime: t.startTime as string,
+          durationMinutes: t.durationMinutes ?? DEFAULT_DURATION_MINUTES,
+        })),
+        (update.durationMinutes as number | undefined) ??
+          current.durationMinutes ??
+          DEFAULT_DURATION_MINUTES
+      );
+    }
+  }
+
   const todo = await Todo.findOneAndUpdate(
     { _id: todoId, userId: user._id },
     { $set: update },

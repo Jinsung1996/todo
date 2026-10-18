@@ -1,7 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { deleteGoalByTitle, dragElementTo, loginAsTestUser } from "./helpers";
+import {
+  deleteGoalByTitle,
+  dragElementBy,
+  findTodoByTitle,
+  loginAsTestUser,
+} from "./helpers";
 
-test("캘린더에서 할일을 그날에 배정하고 드래그로 완료 처리한다", async ({ page }) => {
+test("캘린더 주간 그리드에서 할일을 배정, 체크, 시간 이동, 배정 해제한다", async ({ page }) => {
   const unique = Date.now();
   const goalName = `캘린더 목표 ${unique}`;
   const weekName = `캘린더 주간계획 ${unique}`;
@@ -26,37 +31,58 @@ test("캘린더에서 할일을 그날에 배정하고 드래그로 완료 처�
 
   await page.goto("/calendar");
 
-  // Assign the todo to the selected (today) day via the picker.
-  await page.locator("select").selectOption({ label: todoName });
+  // Assign the (still-unscheduled) todo to today's column via the picker;
+  // the server auto-places it in the first open time slot.
+  await page.locator("select").first().selectOption({ label: todoName });
   const assignResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
   await page.getByRole("button", { name: "추가" }).click();
   await assignResponse;
 
-  const pendingBox = page.locator("div", { hasText: "이 날의 할 일" }).last();
-  await expect(pendingBox.getByText(todoName)).toBeVisible();
+  const block = page.locator(`[data-event-block]`, { hasText: todoName });
+  await expect(block).toBeVisible();
 
-  const doneBox = page.locator("div", { hasText: "완료" }).last();
+  const initialTodo = await findTodoByTitle(page, todoName);
+  expect(initialTodo?.startTime).toBeTruthy();
 
+  // Checking the block's own checkbox marks it done in place (no drag needed).
+  const checkbox = block.getByRole("checkbox");
+  await expect(checkbox).not.toBeChecked();
+  const checkResponse = page.waitForResponse(
+    (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
+  );
+  await checkbox.check();
+  await checkResponse;
+  await expect(block).toHaveClass(/line-through/);
+
+  await page.reload();
+  const reloadedBlock = page.locator(`[data-event-block]`, { hasText: todoName });
+  await expect(reloadedBlock.getByRole("checkbox")).toBeChecked();
+
+  // Dragging the block down by two hour-rows (2 * 48px) reschedules its time,
+  // Google-Calendar style.
   const moveResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
-  await dragElementTo(page, pendingBox.getByText(todoName), doneBox);
+  await dragElementBy(page, reloadedBlock, 0, 96);
   await moveResponse;
 
-  await expect(doneBox.getByText(todoName)).toBeVisible();
+  await expect(async () => {
+    const moved = await findTodoByTitle(page, todoName);
+    expect(moved?.startTime).not.toBe(initialTodo?.startTime);
+  }).toPass();
 
-  await page.reload();
-  const reloadedDoneBox = page.locator("div", { hasText: "완료" }).last();
-  await expect(reloadedDoneBox.getByText(todoName)).toBeVisible();
-
-  // Unassigning removes it from the day's boxes (it still exists as a todo,
-  // so it remains selectable in the picker — just no longer scheduled).
-  await reloadedDoneBox.getByText(todoName).locator("..").getByTitle("이 날짜에서 빼기").click();
-  await expect(reloadedDoneBox.getByText(todoName)).toHaveCount(0);
-  const reloadedPendingBox = page.locator("div", { hasText: "이 날의 할 일" }).last();
-  await expect(reloadedPendingBox.getByText(todoName)).toHaveCount(0);
+  // Unassigning removes it from the grid and makes it selectable again in
+  // the "add to this week" picker (still exists, just not scheduled).
+  const currentBlock = page.locator(`[data-event-block]`, { hasText: todoName });
+  const unassignResponse = page.waitForResponse(
+    (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
+  );
+  await currentBlock.getByTitle("이 날짜에서 빼기").click();
+  await unassignResponse;
+  await expect(page.locator(`[data-event-block]`, { hasText: todoName })).toHaveCount(0);
+  await expect(page.locator("select").first().locator(`option`, { hasText: todoName })).toHaveCount(1);
 
   await deleteGoalByTitle(page, goalName);
 });

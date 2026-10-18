@@ -23,4 +23,6 @@ export interface Todo {
   status: TodoStatus;
   weeklyPlanId: string | WeeklyPlan;
   scheduledDate?: string | null;
+  startTime?: string | null; // "HH:mm"
+  durationMinutes?: number;
 }
