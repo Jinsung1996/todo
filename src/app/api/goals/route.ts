@@ -3,14 +3,23 @@ import { dbConnect } from "@/lib/mongodb";
 import YearlyGoal from "@/models/YearlyGoal";
 import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
+import { getCurrentUser } from "@/lib/currentUser";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   await dbConnect();
-  const goals = await YearlyGoal.find().sort({ year: -1, createdAt: -1 });
+  const goals = await YearlyGoal.find({ userId: user._id }).sort({ year: -1, createdAt: -1 });
   return NextResponse.json(toJSON(goals));
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
   const { title, description, year } = parsed.data;
@@ -27,6 +36,7 @@ export async function POST(request: NextRequest) {
     title,
     description: typeof description === "string" ? description : undefined,
     year,
+    userId: user._id,
   });
   return NextResponse.json(toJSON(goal), { status: 201 });
 }

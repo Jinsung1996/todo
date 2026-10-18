@@ -6,16 +6,21 @@ import Todo from "@/models/Todo";
 import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
+import { getCurrentUser } from "@/lib/currentUser";
 
 type Params = { params: Promise<{ goalId: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   const { goalId } = await params;
   if (!isValidObjectId(goalId)) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   await dbConnect();
-  const goal = await YearlyGoal.findById(goalId);
+  const goal = await YearlyGoal.findOne({ _id: goalId, userId: user._id });
   if (!goal) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
@@ -26,6 +31,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { goalId } = await params;
   if (!isValidObjectId(goalId)) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const parsed = await parseJsonBody(request);
@@ -53,8 +62,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   await dbConnect();
-  const goal = await YearlyGoal.findByIdAndUpdate(
-    goalId,
+  const goal = await YearlyGoal.findOneAndUpdate(
+    { _id: goalId, userId: user._id },
     { $set: update },
     { returnDocument: "after", runValidators: true }
   );
@@ -64,15 +73,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json(toJSON(goal));
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { goalId } = await params;
   if (!isValidObjectId(goalId)) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   await dbConnect();
 
-  const goal = await YearlyGoal.findById(goalId);
+  const goal = await YearlyGoal.findOne({ _id: goalId, userId: user._id });
   if (!goal) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }

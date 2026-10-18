@@ -10,6 +10,7 @@ const WeeklyPlanSchema = new Schema(
       ref: "YearlyGoal",
       required: true,
     },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: false, index: true }, // unset = legacy, pre-ownership (see claimOrphanGoals)
   },
   { timestamps: true }
 );
