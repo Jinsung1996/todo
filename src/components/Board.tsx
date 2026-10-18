@@ -10,7 +10,8 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useRouter } from "next/navigation";
-import { categoryStyle } from "@/lib/category";
+import { resolveCategoryStyle } from "@/lib/category";
+import type { Category } from "@/lib/useCategories";
 import type { Todo, TodoStatus } from "@/types";
 
 const COLUMNS: { id: TodoStatus; label: string }[] = [
@@ -21,10 +22,12 @@ const COLUMNS: { id: TodoStatus; label: string }[] = [
 
 function TodoCard({
   todo,
+  categories,
   onOpen,
   onDelete,
 }: {
   todo: Todo;
+  categories: Category[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -55,7 +58,7 @@ function TodoCard({
         className="flex min-w-0 cursor-pointer items-center gap-1.5 text-ink hover:underline"
       >
         <span
-          className={`h-2 w-2 shrink-0 rounded-full ${categoryStyle(todo.category).dot}`}
+          className={`h-2 w-2 shrink-0 rounded-full ${resolveCategoryStyle(todo.category, categories).dot}`}
           aria-hidden
         />
         {todo.title}
@@ -77,12 +80,14 @@ function Column({
   id,
   label,
   todos,
+  categories,
   onOpen,
   onDelete,
 }: {
   id: TodoStatus;
   label: string;
   todos: Todo[];
+  categories: Category[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -97,7 +102,7 @@ function Column({
     >
       <h3 className="text-sm font-semibold text-muted">{label}</h3>
       {todos.map((todo) => (
-        <TodoCard key={todo._id} todo={todo} onOpen={onOpen} onDelete={onDelete} />
+        <TodoCard key={todo._id} todo={todo} categories={categories} onOpen={onOpen} onDelete={onDelete} />
       ))}
     </div>
   );
@@ -105,10 +110,12 @@ function Column({
 
 export function Board({
   todos,
+  categories,
   onMove,
   onDelete,
 }: {
   todos: Todo[];
+  categories: Category[];
   onMove: (todoId: string, newStatus: TodoStatus) => void;
   onDelete: (todoId: string) => void;
 }) {
@@ -143,6 +150,7 @@ export function Board({
             id={col.id}
             label={col.label}
             todos={todos.filter((t) => t.status === col.id)}
+            categories={categories}
             onOpen={handleOpen}
             onDelete={onDelete}
           />

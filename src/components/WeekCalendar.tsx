@@ -10,7 +10,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { categoryStyle } from "@/lib/category";
+import { resolveCategoryStyle } from "@/lib/category";
 import { isDoneToday } from "@/lib/recurring";
 import {
   GRID_END_MINUTES,
@@ -19,6 +19,7 @@ import {
   snapMinutes,
   timeToMinutes,
 } from "@/lib/schedule";
+import type { Category } from "@/lib/useCategories";
 import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
@@ -51,11 +52,13 @@ const STATUS_OPTIONS: { value: TodoStatus; label: string }[] = [
 
 function EventBlock({
   todo,
+  categories,
   onSetStatus,
   onToggleRecurringToday,
   onUnassign,
 }: {
   todo: ScheduledTodo;
+  categories: Category[];
   onSetStatus: (id: string, status: TodoStatus) => void;
   onToggleRecurringToday: (id: string, checked: boolean) => void;
   onUnassign: (id: string) => void;
@@ -93,7 +96,7 @@ function EventBlock({
   const top = (startMinutes - GRID_START_MINUTES) * PX_PER_MINUTE;
   const height = Math.max(MIN_BLOCK_HEIGHT_PX, previewDuration * PX_PER_MINUTE);
 
-  const cat = categoryStyle(todo.category);
+  const cat = resolveCategoryStyle(todo.category, categories);
   // A recurring todo's stored status stays TODO forever (see
   // src/lib/recurring.ts) — "done" is whether it's been checked off today.
   const done = isDoneToday(todo);
@@ -204,12 +207,14 @@ function EventBlock({
 function DayColumn({
   date,
   todos,
+  categories,
   onSetStatus,
   onToggleRecurringToday,
   onUnassign,
 }: {
   date: string;
   todos: ScheduledTodo[];
+  categories: Category[];
   onSetStatus: (id: string, status: TodoStatus) => void;
   onToggleRecurringToday: (id: string, checked: boolean) => void;
   onUnassign: (id: string) => void;
@@ -237,6 +242,7 @@ function DayColumn({
         <EventBlock
           key={todo._id}
           todo={todo}
+          categories={categories}
           onSetStatus={onSetStatus}
           onToggleRecurringToday={onToggleRecurringToday}
           onUnassign={onUnassign}
@@ -246,7 +252,7 @@ function DayColumn({
   );
 }
 
-function TrayChip({ todo }: { todo: Todo }) {
+function TrayChip({ todo, categories }: { todo: Todo; categories: Category[] }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `${CHIP_ID_PREFIX}${todo._id}`,
   });
@@ -255,7 +261,7 @@ function TrayChip({ todo }: { todo: Todo }) {
   // still show up here (see trayTodos) — flag that instead of pretending
   // it's unscheduled.
   const scheduledHint = todo.scheduledDate ? ` · ${todo.scheduledDate.slice(5).replace("-", "/")}` : "";
-  const cat = categoryStyle(todo.category);
+  const cat = resolveCategoryStyle(todo.category, categories);
 
   return (
     <div
@@ -281,13 +287,13 @@ function TrayChip({ todo }: { todo: Todo }) {
   );
 }
 
-function Tray({ todos }: { todos: Todo[] }) {
+function Tray({ todos, categories }: { todos: Todo[]; categories: Category[] }) {
   if (todos.length === 0) return null;
   return (
     <div className="mb-2 flex flex-wrap items-center gap-1.5 border-b border-hairline-soft pb-2">
       <span className="shrink-0 text-[11px] text-muted-soft">끌어서 일정에 추가 →</span>
       {todos.map((todo) => (
-        <TrayChip key={todo._id} todo={todo} />
+        <TrayChip key={todo._id} todo={todo} categories={categories} />
       ))}
     </div>
   );
@@ -296,6 +302,7 @@ function Tray({ todos }: { todos: Todo[] }) {
 export function WeekCalendar({
   weekDays,
   todos,
+  categories,
   onMoveTodo,
   onSetStatus,
   onResizeTodo,
@@ -307,6 +314,9 @@ export function WeekCalendar({
   /** All of the user's todos — ones scheduled inside this week render as
    *  grid blocks; see `trayTodos` for which ones also render as chips. */
   todos: Todo[];
+  /** The user's registered categories, for resolving each todo's saved
+   *  color (see resolveCategoryStyle in src/lib/category.ts). */
+  categories: Category[];
   onMoveTodo: (todoId: string, newDate: string, newStartTime: string) => void;
   onSetStatus: (todoId: string, status: TodoStatus) => void;
   onResizeTodo: (todoId: string, durationMinutes: number) => void;
@@ -374,7 +384,7 @@ export function WeekCalendar({
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <Tray todos={trayTodos} />
+      <Tray todos={trayTodos} categories={categories} />
       <div className="flex flex-col">
         <div className="flex">
           <div className="w-10 shrink-0" />
@@ -415,6 +425,7 @@ export function WeekCalendar({
                 key={key}
                 date={key}
                 todos={scheduled.filter((t) => (t.isRecurring ? key === today : t.scheduledDate === key))}
+                categories={categories}
                 onSetStatus={onSetStatus}
                 onToggleRecurringToday={onToggleRecurringToday}
                 onUnassign={onUnassign}

@@ -9,6 +9,7 @@ import { TodayAgenda } from "@/components/TodayAgenda";
 import { WeekCalendar } from "@/components/WeekCalendar";
 import { weeklyProgress } from "@/lib/progress";
 import { isActiveToday } from "@/lib/recurring";
+import { useCategories } from "@/lib/useCategories";
 import { useTodos } from "@/lib/useTodos";
 import { startOfWeek } from "@/lib/week";
 import type { WeeklyPlan, YearlyGoal } from "@/types";
@@ -32,6 +33,7 @@ export default function DashboardPage() {
     unassign,
     assignToDay,
   } = useTodos();
+  const { categories } = useCategories();
 
   useEffect(() => {
     Promise.all([
@@ -109,6 +111,7 @@ export default function DashboardPage() {
             <WeekCalendar
               weekDays={weekDays}
               todos={todos}
+              categories={categories}
               onMoveTodo={moveTodo}
               onSetStatus={setStatus}
               onResizeTodo={resizeTodo}

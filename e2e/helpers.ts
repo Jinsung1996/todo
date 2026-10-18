@@ -53,6 +53,15 @@ export async function deleteGoalByTitle(page: Page, title: string) {
   }
 }
 
+export async function deleteCategoryByName(page: Page, name: string) {
+  const res = await page.request.get("/api/categories");
+  const categories: { _id: string; name: string }[] = await res.json();
+  const category = categories.find((c) => c.name === name);
+  if (category) {
+    await page.request.delete(`/api/categories/${category._id}`);
+  }
+}
+
 export async function findTodoByTitle(page: Page, title: string) {
   const res = await page.request.get("/api/todos");
   const todos: {

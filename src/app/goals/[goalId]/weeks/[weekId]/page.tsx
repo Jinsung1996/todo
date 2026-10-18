@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Board } from "@/components/Board";
+import { CategoryPicker } from "@/components/CategoryPicker";
 import { ProgressBar } from "@/components/ProgressBar";
-import { CATEGORY_SUGGESTIONS } from "@/lib/category";
+import { useCategories } from "@/lib/useCategories";
 import { weeklyProgress } from "@/lib/progress";
 import type { Todo, TodoStatus, WeeklyPlan } from "@/types";
 
@@ -16,6 +17,7 @@ export default function WeekBoardPage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(true);
+  const { categories, createCategory, deleteCategory } = useCategories();
 
   async function load() {
     const [weekRes, todosRes] = await Promise.all([
@@ -45,6 +47,7 @@ export default function WeekBoardPage() {
       body: JSON.stringify({ title, category: category.trim() || undefined }),
     });
     setTitle("");
+    setCategory("");
     load();
   }
 
@@ -104,19 +107,19 @@ export default function WeekBoardPage() {
 
       <ProgressBar percent={progress} />
 
-      <form onSubmit={createTodo} className="flex gap-2">
+      <form onSubmit={createTodo} className="flex items-start gap-2">
         <input
           className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
           placeholder="일간 목표 제목"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <input
-          list="category-suggestions"
-          className="w-28 rounded-sm border border-hairline bg-canvas px-2 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
-          placeholder="분류 (선택)"
+        <CategoryPicker
+          categories={categories}
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={setCategory}
+          onCreate={createCategory}
+          onDelete={deleteCategory}
         />
         <button
           type="submit"
@@ -125,13 +128,8 @@ export default function WeekBoardPage() {
           추가
         </button>
       </form>
-      <datalist id="category-suggestions">
-        {CATEGORY_SUGGESTIONS.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
 
-      <Board todos={todos} onMove={moveTodo} onDelete={deleteTodo} />
+      <Board todos={todos} categories={categories} onMove={moveTodo} onDelete={deleteTodo} />
     </main>
   );
 }

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { CATEGORY_SUGGESTIONS } from "@/lib/category";
+import { CategoryPicker } from "@/components/CategoryPicker";
 import { isDoneToday } from "@/lib/recurring";
+import { useCategories } from "@/lib/useCategories";
 import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus, WeeklyPlan, YearlyGoal } from "@/types";
 
@@ -19,7 +20,7 @@ export default function TodoDetailPage() {
   const router = useRouter();
   const [todo, setTodo] = useState<Todo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [categoryInput, setCategoryInput] = useState("");
+  const { categories, createCategory, deleteCategory } = useCategories();
 
   async function load() {
     const res = await fetch(`/api/todos/${todoId}`);
@@ -30,7 +31,6 @@ export default function TodoDetailPage() {
     }
     const data: Todo = await res.json();
     setTodo(data);
-    setCategoryInput(data.category ?? "");
     setLoading(false);
   }
 
@@ -146,25 +146,16 @@ export default function TodoDetailPage() {
         매일 반복 (체크해도 목록에서 사라지지 않고 다음 날 다시 체크할 수 있어요)
       </label>
 
-      <label className="flex items-center gap-2 text-sm text-muted">
+      <div className="flex items-start gap-2 text-sm text-muted">
         분류
-        <input
-          list="category-suggestions"
-          value={categoryInput}
-          onChange={(e) => setCategoryInput(e.target.value)}
-          onBlur={() => {
-            const trimmed = categoryInput.trim();
-            if (trimmed !== (todo.category ?? "")) changeCategory(trimmed || null);
-          }}
-          placeholder="분류 없음"
-          className="rounded-sm border border-hairline bg-canvas px-2 py-1 text-ink focus:border-2 focus:border-ink focus:outline-none"
+        <CategoryPicker
+          categories={categories}
+          value={todo.category ?? ""}
+          onChange={(value) => changeCategory(value || null)}
+          onCreate={createCategory}
+          onDelete={deleteCategory}
         />
-        <datalist id="category-suggestions">
-          {CATEGORY_SUGGESTIONS.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-      </label>
+      </div>
 
       <button onClick={deleteTodo} className="self-start text-sm text-error hover:text-error-hover">
         삭제

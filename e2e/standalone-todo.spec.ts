@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { dragElementTo, findTodoByTitle, loginAsTestUser } from "./helpers";
+import { deleteCategoryByName, dragElementTo, findTodoByTitle, loginAsTestUser } from "./helpers";
 
 function todayKey(): string {
   const d = new Date();
@@ -19,10 +19,15 @@ test("일간 목표 페이지에서 목표 없이 바로 추가한 일정도 대
   await loginAsTestUser(page);
 
   // Create it directly from the 일간 목표 page — no 연간/주간 목표 involved —
-  // with a free-typed category (not picked from a fixed list).
+  // registering a brand-new category with its own color through the
+  // category picker, then using it for this todo.
   await page.goto("/daily");
   await page.getByPlaceholder("일간 목표 제목").fill(todoName);
-  await page.getByPlaceholder("분류 (선택)").fill(customCategory);
+  await page.getByRole("combobox").selectOption("__new__");
+  await page.getByPlaceholder("새 분류 이름").fill(customCategory);
+  await page.getByRole("button", { name: "노란색" }).click();
+  await page.getByRole("button", { name: "분류 추가" }).click();
+  await expect(page.getByRole("combobox")).toHaveValue(customCategory);
   await page.getByRole("button", { name: "추가" }).click();
   await expect(page.getByText(todoName)).toBeVisible();
 
@@ -51,4 +56,5 @@ test("일간 목표 페이지에서 목표 없이 바로 추가한 일정도 대
   if (created) {
     await page.request.delete(`/api/todos/${created._id}`);
   }
+  await deleteCategoryByName(page, customCategory);
 });

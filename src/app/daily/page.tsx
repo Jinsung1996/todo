@@ -3,8 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CATEGORY_SUGGESTIONS, categoryStyle } from "@/lib/category";
+import { CategoryPicker } from "@/components/CategoryPicker";
+import { resolveCategoryStyle } from "@/lib/category";
 import { effectiveStatus, isDoneToday } from "@/lib/recurring";
+import { useCategories } from "@/lib/useCategories";
 import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
@@ -24,6 +26,7 @@ function DailyPageContent() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
+  const { categories, createCategory, deleteCategory } = useCategories();
 
   function load() {
     const query = status === "all" ? "" : `?status=${status}`;
@@ -53,6 +56,7 @@ function DailyPageContent() {
       body: JSON.stringify({ title, category: category.trim() || undefined, isRecurring }),
     });
     setTitle("");
+    setCategory("");
     setIsRecurring(false);
     load();
   }
@@ -111,19 +115,19 @@ function DailyPageContent() {
       <h1 className="text-2xl font-bold text-ink">일간 목표</h1>
 
       <form onSubmit={createStandaloneTodo} className="flex flex-col gap-1">
-        <div className="flex gap-2">
+        <div className="flex items-start gap-2">
           <input
             className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
             placeholder="일간 목표 제목 (예: 출근, 운동, 친구 약속, 토익)"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <input
-            list="category-suggestions"
-            className="w-28 rounded-sm border border-hairline bg-canvas px-2 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
-            placeholder="분류 (선택)"
+          <CategoryPicker
+            categories={categories}
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={setCategory}
+            onCreate={createCategory}
+            onDelete={deleteCategory}
           />
           <button
             type="submit"
@@ -147,11 +151,6 @@ function DailyPageContent() {
           않는 일정도 캘린더에 올릴 수 있습니다.
         </p>
       </form>
-      <datalist id="category-suggestions">
-        {CATEGORY_SUGGESTIONS.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
 
       <div className="flex gap-2">
         {TABS.map((tab) => (
@@ -181,7 +180,7 @@ function DailyPageContent() {
           <ul className="flex flex-col gap-2">
             {todos.map((todo) => {
               const done = isDoneToday(todo);
-              const cat = categoryStyle(todo.category);
+              const cat = resolveCategoryStyle(todo.category, categories);
               return (
                 <li key={todo._id}>
                   <Link
