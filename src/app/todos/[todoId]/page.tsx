@@ -22,9 +22,28 @@ export default function TodoDetailPage() {
   const [loading, setLoading] = useState(true);
   const { categories, createCategory, deleteCategory } = useCategories();
 
+  // One retry after a short delay — a cold serverless start or a momentary
+  // DB connection hiccup can make a single request fail even though the
+  // todo is really there (confirmed by hand against production: the exact
+  // same request succeeded moments later with no code change). Without
+  // this, that transient blip reads as "일간 목표를 찾을 수 없습니다.",
+  // which looks like the data was lost.
+  async function fetchTodoWithRetry(): Promise<Response | null> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(`/api/todos/${todoId}`);
+        if (res.ok || attempt === 1) return res;
+      } catch {
+        if (attempt === 1) return null;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+    return null;
+  }
+
   async function load() {
-    const res = await fetch(`/api/todos/${todoId}`);
-    if (!res.ok) {
+    const res = await fetchTodoWithRetry();
+    if (!res || !res.ok) {
       setTodo(null);
       setLoading(false);
       return;
