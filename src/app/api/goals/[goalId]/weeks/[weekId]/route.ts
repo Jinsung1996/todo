@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await dbConnect();
-  const week = await WeeklyPlan.findById(weekId);
+  const week = await WeeklyPlan.findOne({ _id: weekId, userId: user._id });
   if (!week) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
@@ -35,6 +35,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { weekId } = await params;
   if (!isValidObjectId(weekId)) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const parsed = await parseJsonBody(request);
@@ -62,8 +66,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   await dbConnect();
-  const week = await WeeklyPlan.findByIdAndUpdate(
-    weekId,
+  const week = await WeeklyPlan.findOneAndUpdate(
+    { _id: weekId, userId: user._id },
     { $set: update },
     { returnDocument: "after", runValidators: true }
   );
@@ -73,13 +77,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json(toJSON(week));
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { weekId } = await params;
   if (!isValidObjectId(weekId)) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   await dbConnect();
-  const week = await WeeklyPlan.findById(weekId);
+  const week = await WeeklyPlan.findOne({ _id: weekId, userId: user._id });
   if (!week) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }

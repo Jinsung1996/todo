@@ -5,16 +5,21 @@ import WeeklyPlan from "@/models/WeeklyPlan";
 import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
+import { getCurrentUser } from "@/lib/currentUser";
 
 type Params = { params: Promise<{ goalId: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   const { goalId } = await params;
   if (!isValidObjectId(goalId)) {
     return NextResponse.json([], { status: 200 });
   }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   await dbConnect();
-  const weeks = await WeeklyPlan.find({ yearlyGoalId: goalId }).sort({
+  const weeks = await WeeklyPlan.find({ yearlyGoalId: goalId, userId: user._id }).sort({
     weekStart: 1,
   });
   return NextResponse.json(toJSON(weeks));
@@ -24,6 +29,10 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { goalId } = await params;
   if (!isValidObjectId(goalId)) {
     return NextResponse.json({ error: "yearly goal not found" }, { status: 404 });
+  }
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const parsed = await parseJsonBody(request);
@@ -45,7 +54,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   await dbConnect();
-  const goal = await YearlyGoal.findById(goalId);
+  const goal = await YearlyGoal.findOne({ _id: goalId, userId: user._id });
   if (!goal) {
     return NextResponse.json({ error: "yearly goal not found" }, { status: 404 });
   }
@@ -55,6 +64,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     weekStart,
     weekEnd,
     yearlyGoalId: goalId,
+    userId: user._id,
   });
   return NextResponse.json(toJSON(week), { status: 201 });
 }

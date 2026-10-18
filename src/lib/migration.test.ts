@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { dbConnect } from "./mongodb";
-import { claimOrphanTodos } from "./migration";
+import { claimOrphanGoals, claimOrphanTodos } from "./migration";
 import { assertTestDatabase } from "./testDbGuard";
 import Todo from "@/models/Todo";
 import User from "@/models/User";
@@ -78,5 +78,45 @@ describe("claimOrphanTodos", () => {
       avatarUrl: "https://example.com/a.png",
     });
     expect(await claimOrphanTodos(String(user._id))).toBe(0);
+  });
+});
+
+describe("claimOrphanGoals", () => {
+  async function makeUser(githubId: string) {
+    return User.create({ githubId, username: githubId, avatarUrl: "https://example.com/a.png" });
+  }
+
+  it("gives a legacy goal (and its weeks) to whoever owns the todos under it", async () => {
+    await makeUser("owner-first");
+    const todoOwner = await makeUser("todo-owner");
+    const week = await makeWeeklyPlan();
+    await Todo.create({ title: "t", weeklyPlanId: week._id, userId: todoOwner._id });
+
+    expect(await claimOrphanGoals()).toBe(1);
+
+    const goal = await YearlyGoal.findById(week.yearlyGoalId);
+    const reloadedWeek = await WeeklyPlan.findById(week._id);
+    expect(String(goal?.userId)).toBe(String(todoOwner._id));
+    expect(String(reloadedWeek?.userId)).toBe(String(todoOwner._id));
+  });
+
+  it("falls back to the earliest user for a legacy goal with no owned todos", async () => {
+    const original = await makeUser("original");
+    await makeUser("later");
+    await YearlyGoal.create({ title: "empty", year: 2026 });
+
+    expect(await claimOrphanGoals()).toBe(1);
+    const goal = await YearlyGoal.findOne({ title: "empty" });
+    expect(String(goal?.userId)).toBe(String(original._id));
+  });
+
+  it("does not touch goals that already have an owner", async () => {
+    await makeUser("original");
+    const other = await makeUser("other");
+    await YearlyGoal.create({ title: "theirs", year: 2026, userId: other._id });
+
+    expect(await claimOrphanGoals()).toBe(0);
+    const goal = await YearlyGoal.findOne({ title: "theirs" });
+    expect(String(goal?.userId)).toBe(String(other._id));
   });
 });

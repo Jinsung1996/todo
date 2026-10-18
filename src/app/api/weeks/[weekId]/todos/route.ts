@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   await dbConnect();
-  const week = await WeeklyPlan.findById(weekId);
+  const week = await WeeklyPlan.findOne({ _id: weekId, userId: user._id });
   if (!week) {
     return NextResponse.json(
       { error: "weekly plan not found" },

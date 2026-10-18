@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await dbConnect();
-  const weeks = await WeeklyPlan.find()
+  const weeks = await WeeklyPlan.find({ userId: user._id })
     .populate("yearlyGoalId")
     .sort({ weekStart: -1 });
 
