@@ -21,8 +21,14 @@ export interface Todo {
   title: string;
   description?: string;
   status: TodoStatus;
-  weeklyPlanId: string | WeeklyPlan;
+  category?: string | null;
+  // Absent for a standalone "일간 목표" item not tied to any 주간 목표.
+  weeklyPlanId?: string | WeeklyPlan | null;
   scheduledDate?: string | null;
   startTime?: string | null; // "HH:mm"
   durationMinutes?: number;
+  // 매일 반복되는 습관(아침/점심/저녁 등) — see src/lib/recurring.ts for how
+  // completion is derived from lastCompletedDate instead of status.
+  isRecurring?: boolean;
+  lastCompletedDate?: string | null;
 }

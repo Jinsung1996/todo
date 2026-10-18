@@ -48,7 +48,7 @@ export default function GoalDetailPage() {
   }
 
   async function deleteWeek(id: string) {
-    if (!confirm("이 주간계획과 하위 할일이 모두 삭제됩니다. 계속할까요?")) {
+    if (!confirm("이 주간 목표와 하위 일간 목표가 모두 삭제됩니다. 계속할까요?")) {
       return;
     }
     await fetch(`/api/goals/${goalId}/weeks/${id}`, { method: "DELETE" });
@@ -72,7 +72,7 @@ export default function GoalDetailPage() {
       <form onSubmit={createWeek} className="flex flex-wrap gap-2">
         <input
           className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
-          placeholder="주간계획 제목"
+          placeholder="주간 목표 제목"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -114,7 +114,7 @@ export default function GoalDetailPage() {
           </li>
         ))}
         {weeks.length === 0 && (
-          <p className="text-sm text-muted">아직 등록된 주간계획이 없습니다.</p>
+          <p className="text-sm text-muted">아직 등록된 주간 목표가 없습니다.</p>
         )}
       </ul>
     </main>

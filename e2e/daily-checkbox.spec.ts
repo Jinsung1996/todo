@@ -13,14 +13,14 @@ test("할 일 목록에서 체크박스로 완료 표시하면 초록색으로 �
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByText(goalName).click();
 
-  await page.getByPlaceholder("주간계획 제목").fill(weekName);
+  await page.getByPlaceholder("주간 목표 제목").fill(weekName);
   const dateInputs = page.locator('input[type="date"]');
   await dateInputs.nth(0).fill("2026-01-01");
   await dateInputs.nth(1).fill("2026-01-07");
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByText(weekName).click();
 
-  await page.getByPlaceholder("할일 제목").fill(todoName);
+  await page.getByPlaceholder("일간 목표 제목").fill(todoName);
   await page.getByRole("button", { name: "추가" }).click();
   await expect(page.getByText(todoName)).toBeVisible();
 

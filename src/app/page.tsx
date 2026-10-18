@@ -5,10 +5,12 @@ import Link from "next/link";
 import { NotepadCard } from "@/components/NotepadCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatCard } from "@/components/StatCard";
+import { TodayAgenda } from "@/components/TodayAgenda";
 import { WeekCalendar } from "@/components/WeekCalendar";
 import { weeklyProgress } from "@/lib/progress";
+import { isActiveToday } from "@/lib/recurring";
 import { useTodos } from "@/lib/useTodos";
-import { dateKey, startOfWeek } from "@/lib/week";
+import { startOfWeek } from "@/lib/week";
 import type { WeeklyPlan, YearlyGoal } from "@/types";
 
 function isThisWeek(week: WeeklyPlan): boolean {
@@ -20,7 +22,16 @@ export default function DashboardPage() {
   const [goals, setGoals] = useState<YearlyGoal[]>([]);
   const [weeks, setWeeks] = useState<WeeklyPlan[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
-  const { todos, loading: todosLoading, moveTodo, toggleDone, unassign } = useTodos();
+  const {
+    todos,
+    loading: todosLoading,
+    moveTodo,
+    setStatus,
+    resizeTodo,
+    toggleRecurringToday,
+    unassign,
+    assignToDay,
+  } = useTodos();
 
   useEffect(() => {
     Promise.all([
@@ -37,9 +48,8 @@ export default function DashboardPage() {
     return <main className="p-8 text-body-text">불러오는 중...</main>;
   }
 
-  const today = dateKey();
   const thisWeekPlans = weeks.filter(isThisWeek);
-  const todayCount = todos.filter((t) => t.scheduledDate === today).length;
+  const todayCount = todos.filter(isActiveToday).length;
   const completionPercent = weeklyProgress(todos);
   const recentGoals = goals.slice(0, 5);
 
@@ -49,16 +59,11 @@ export default function DashboardPage() {
     d.setDate(d.getDate() + i);
     return d;
   });
-  const weekKeys = weekDays.map((d) => dateKey(d));
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-8">
-      <p className="text-sm text-muted">
-        1년 목표 -&gt; 이번 주 계획 -&gt; 오늘의 할 일을 한 화면에서
-      </p>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <NotepadCard label="1년 목표" value={goals.length}>
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-3 p-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <NotepadCard label="연간 목표" value={goals.length}>
           {recentGoals.map((goal) => (
             <Link
               key={goal._id}
@@ -74,7 +79,7 @@ export default function DashboardPage() {
           )}
         </NotepadCard>
 
-        <NotepadCard label="이번 주 목표" value={thisWeekPlans.length}>
+        <NotepadCard label="주간 목표" value={thisWeekPlans.length}>
           {thisWeekPlans.map((week) => {
             const goal = week.yearlyGoalId as YearlyGoal;
             const goalId = typeof goal === "string" ? goal : goal._id;
@@ -94,27 +99,27 @@ export default function DashboardPage() {
           )}
         </NotepadCard>
 
-        <StatCard href="/calendar" label="오늘 할 일 수" value={todayCount} />
+        <StatCard href="/daily" label="오늘 일간 목표 수" value={todayCount} />
         <StatCard href="/daily?status=done" label="완료(%)" value={completionPercent} suffix="%" />
       </div>
 
-      <section className="flex flex-1 flex-col gap-3 rounded-md border border-hairline p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-muted">이번 주 캘린더</h2>
-          <Link href="/calendar" className="text-xs text-muted hover:text-primary">
-            전체 보기 →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <WeekCalendar
-            weekDays={weekDays}
-            todos={todos.filter((t) => t.scheduledDate && weekKeys.includes(t.scheduledDate))}
-            onMoveTodo={moveTodo}
-            onToggleDone={toggleDone}
-            onUnassign={unassign}
-          />
-        </div>
-      </section>
+      <div className="flex flex-1 items-stretch gap-3">
+        <section className="flex flex-1 flex-col rounded-md border border-hairline p-3">
+          <div className="overflow-x-auto">
+            <WeekCalendar
+              weekDays={weekDays}
+              todos={todos}
+              onMoveTodo={moveTodo}
+              onSetStatus={setStatus}
+              onResizeTodo={resizeTodo}
+              onToggleRecurringToday={toggleRecurringToday}
+              onUnassign={unassign}
+              onScheduleTodo={assignToDay}
+            />
+          </div>
+        </section>
+        <TodayAgenda date={new Date()} todos={todos} />
+      </div>
     </main>
   );
 }

@@ -6,10 +6,9 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/", label: "대시보드", emoji: "🏠" },
-  { href: "/goals", label: "1년 목표", emoji: "🎯" },
-  { href: "/weeks", label: "주간 계획", emoji: "📅" },
-  { href: "/daily", label: "할 일", emoji: "✅" },
-  { href: "/calendar", label: "캘린더", emoji: "🗓️" },
+  { href: "/goals", label: "연간 목표", emoji: "🎯" },
+  { href: "/weeks", label: "주간 목표", emoji: "📅" },
+  { href: "/daily", label: "일간 목표", emoji: "✅" },
 ];
 
 export interface ShellUser {
@@ -75,7 +74,7 @@ export function AppShell({
       </aside>
       <div className="flex flex-1 flex-col bg-canvas">
         <header className="border-b border-hairline px-8 py-5">
-          <h1 className="text-xl font-bold text-ink">할 일 + 계획 관리</h1>
+          <h1 className="text-xl font-bold text-ink">목표 관리</h1>
         </header>
         <div className="flex flex-1 flex-col">{children}</div>
       </div>

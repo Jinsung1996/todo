@@ -14,10 +14,10 @@ export function StatCard({
   return (
     <Link
       href={href}
-      className="flex flex-col gap-1 rounded-md border border-hairline bg-canvas px-5 py-4 transition-shadow hover:shadow-elevated"
+      className="flex items-center justify-between gap-2 rounded-md border border-hairline bg-canvas px-3 py-2 transition-shadow hover:shadow-elevated"
     >
-      <span className="text-sm text-muted">{label}</span>
-      <span className="text-2xl font-bold text-ink">
+      <span className="truncate text-xs text-muted">{label}</span>
+      <span className="shrink-0 text-base font-bold text-ink">
         {value}
         {suffix}
       </span>

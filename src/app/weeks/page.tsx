@@ -20,7 +20,7 @@ export default function WeeksPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-bold text-ink">주간 계획</h1>
+      <h1 className="text-2xl font-bold text-ink">주간 목표</h1>
 
       {loading ? (
         <p className="text-body-text">불러오는 중...</p>
@@ -47,7 +47,7 @@ export default function WeeksPage() {
             );
           })}
           {weeks.length === 0 && (
-            <p className="text-sm text-muted">아직 등록된 주간계획이 없습니다.</p>
+            <p className="text-sm text-muted">아직 등록된 주간 목표가 없습니다.</p>
           )}
         </ul>
       )}

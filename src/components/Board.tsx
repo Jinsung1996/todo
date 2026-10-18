@@ -10,10 +10,11 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useRouter } from "next/navigation";
+import { categoryStyle } from "@/lib/category";
 import type { Todo, TodoStatus } from "@/types";
 
 const COLUMNS: { id: TodoStatus; label: string }[] = [
-  { id: "TODO", label: "할 일" },
+  { id: "TODO", label: "진행 전" },
   { id: "DOING", label: "진행 중" },
   { id: "DONE", label: "완료" },
 ];
@@ -51,8 +52,12 @@ function TodoCard({
           e.stopPropagation();
           onOpen(todo._id);
         }}
-        className="cursor-pointer text-ink hover:underline"
+        className="flex min-w-0 cursor-pointer items-center gap-1.5 text-ink hover:underline"
       >
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${categoryStyle(todo.category).dot}`}
+          aria-hidden
+        />
         {todo.title}
       </span>
       <button

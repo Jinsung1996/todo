@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "할 일 + 계획 관리",
-  description: "1년 목표 -> 이번 주 계획 -> 오늘의 할 일을 한 화면에서",
+  title: "목표 관리",
+  description: "연간 목표 -> 주간 목표 -> 일간 목표를 한 화면에서",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

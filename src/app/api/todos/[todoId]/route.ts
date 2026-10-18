@@ -5,6 +5,7 @@ import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
+import { normalizeCategoryInput } from "@/lib/category";
 import { DEFAULT_DURATION_MINUTES, nextAvailableSlot } from "@/lib/schedule";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -43,7 +44,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
-  const { title, description, status, scheduledDate, startTime, durationMinutes } = parsed.data;
+  const {
+    title,
+    description,
+    status,
+    category,
+    scheduledDate,
+    startTime,
+    durationMinutes,
+    isRecurring,
+    lastCompletedDate,
+  } = parsed.data;
 
   const update: Record<string, unknown> = {};
   if (title !== undefined) {
@@ -63,6 +74,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "invalid status" }, { status: 400 });
     }
     update.status = status;
+  }
+  if (category !== undefined) {
+    const result = normalizeCategoryInput(category);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    update.category = result.category;
   }
   if (durationMinutes !== undefined) {
     if (
@@ -86,6 +104,27 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       );
     }
     update.startTime = startTime;
+  }
+  if (isRecurring !== undefined) {
+    if (typeof isRecurring !== "boolean") {
+      return NextResponse.json({ error: "isRecurring must be a boolean" }, { status: 400 });
+    }
+    update.isRecurring = isRecurring;
+  }
+  // Set by the calendar/daily checkbox when checking off a recurring todo
+  // for today (or clearing it back out) — see src/lib/useTodos.ts's
+  // toggleRecurringToday, which never touches `status` for these.
+  if (lastCompletedDate !== undefined) {
+    if (
+      lastCompletedDate !== null &&
+      (typeof lastCompletedDate !== "string" || Number.isNaN(Date.parse(lastCompletedDate)))
+    ) {
+      return NextResponse.json(
+        { error: "lastCompletedDate must be a valid date string or null" },
+        { status: 400 }
+      );
+    }
+    update.lastCompletedDate = lastCompletedDate;
   }
 
   // Scheduling a todo onto a day (and leaving its time unspecified) auto-fills

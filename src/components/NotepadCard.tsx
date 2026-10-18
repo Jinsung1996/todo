@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-/** Stat card that opens like a notepad to reveal its list on click. */
+/** Compact stat pill that opens like a notepad to reveal its list on click. */
 export function NotepadCard({
   label,
   value,
@@ -12,7 +12,7 @@ export function NotepadCard({
   value: number;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="flex flex-col rounded-md border border-hairline bg-canvas transition-shadow hover:shadow-elevated">
@@ -20,21 +20,21 @@ export function NotepadCard({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center justify-between gap-2 px-5 py-4 text-left"
+        className="flex items-center justify-between gap-2 px-3 py-2 text-left"
       >
-        <span className="flex flex-col gap-1">
-          <span className="text-sm text-muted">{label}</span>
-          <span className="text-2xl font-bold text-ink">{value}</span>
-        </span>
-        <span
-          className={`text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-          aria-hidden
-        >
-          ⌄
+        <span className="truncate text-xs text-muted">{label}</span>
+        <span className="flex shrink-0 items-center gap-1">
+          <span className="text-base font-bold text-ink">{value}</span>
+          <span
+            className={`text-[10px] text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          >
+            ⌄
+          </span>
         </span>
       </button>
       {open && (
-        <div className="flex flex-col gap-2 border-t border-hairline px-5 py-3">{children}</div>
+        <div className="flex flex-col gap-1.5 border-t border-hairline px-3 py-2">{children}</div>
       )}
     </div>
   );

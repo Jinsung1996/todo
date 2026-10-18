@@ -55,6 +55,13 @@ export async function deleteGoalByTitle(page: Page, title: string) {
 
 export async function findTodoByTitle(page: Page, title: string) {
   const res = await page.request.get("/api/todos");
-  const todos: { _id: string; title: string; startTime?: string | null }[] = await res.json();
+  const todos: {
+    _id: string;
+    title: string;
+    scheduledDate?: string | null;
+    startTime?: string | null;
+    durationMinutes?: number;
+    category?: string | null;
+  }[] = await res.json();
   return todos.find((t) => t.title === title);
 }

@@ -35,7 +35,7 @@ export default function GoalsPage() {
   }
 
   async function deleteGoal(id: string) {
-    if (!confirm("이 목표와 하위 주간계획/할일이 모두 삭제됩니다. 계속할까요?")) {
+    if (!confirm("이 목표와 하위 주간 목표/일간 목표가 모두 삭제됩니다. 계속할까요?")) {
       return;
     }
     await fetch(`/api/goals/${id}`, { method: "DELETE" });
@@ -69,7 +69,7 @@ export default function GoalsPage() {
     if (selected.size === 0) return;
     if (
       !confirm(
-        `선택한 ${selected.size}개의 목표와 하위 주간계획/할일이 모두 삭제됩니다. 계속할까요?`
+        `선택한 ${selected.size}개의 목표와 하위 주간 목표/일간 목표가 모두 삭제됩니다. 계속할까요?`
       )
     ) {
       return;

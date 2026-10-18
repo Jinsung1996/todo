@@ -6,6 +6,7 @@ import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
+import { normalizeCategoryInput } from "@/lib/category";
 
 type Params = { params: Promise<{ weekId: string }> };
 
@@ -37,13 +38,17 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
-  const { title, description } = parsed.data;
+  const { title, description, category } = parsed.data;
 
   if (typeof title !== "string" || !title) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
   if (description !== undefined && typeof description !== "string") {
     return NextResponse.json({ error: "description must be a string" }, { status: 400 });
+  }
+  const categoryResult = normalizeCategoryInput(category);
+  if (!categoryResult.ok) {
+    return NextResponse.json({ error: categoryResult.error }, { status: 400 });
   }
 
   await dbConnect();
@@ -58,6 +63,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const todo = await Todo.create({
     title,
     description: typeof description === "string" ? description : undefined,
+    category: categoryResult.category ?? undefined,
     weeklyPlanId: weekId,
     userId: user._id,
   });

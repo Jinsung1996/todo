@@ -36,7 +36,7 @@ test("할일 생성 → 보드에서 드래그로 done 이동 → 주간 진행�
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByText(`e2e 목표 ${unique}`).click();
 
-  await page.getByPlaceholder("주간계획 제목").fill(`e2e 주간계획 ${unique}`);
+  await page.getByPlaceholder("주간 목표 제목").fill(`e2e 주간계획 ${unique}`);
   const dateInputs = page.locator('input[type="date"]');
   await dateInputs.nth(0).fill("2026-01-01");
   await dateInputs.nth(1).fill("2026-01-07");
@@ -45,7 +45,7 @@ test("할일 생성 → 보드에서 드래그로 done 이동 → 주간 진행�
 
   await expect(page.getByText("0%")).toBeVisible();
 
-  await page.getByPlaceholder("할일 제목").fill(`e2e 할일 ${unique}`);
+  await page.getByPlaceholder("일간 목표 제목").fill(`e2e 할일 ${unique}`);
   await page.getByRole("button", { name: "추가" }).click();
   await expect(page.getByText(`e2e 할일 ${unique}`)).toBeVisible();
 
@@ -72,14 +72,14 @@ test("네트워크 실패 시 드래그가 롤백된다", async ({ page }) => {
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByText(`e2e 롤백 목표 ${unique}`).click();
 
-  await page.getByPlaceholder("주간계획 제목").fill(`e2e 롤백 주간계획 ${unique}`);
+  await page.getByPlaceholder("주간 목표 제목").fill(`e2e 롤백 주간계획 ${unique}`);
   const dateInputs = page.locator('input[type="date"]');
   await dateInputs.nth(0).fill("2026-01-01");
   await dateInputs.nth(1).fill("2026-01-07");
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByText(`e2e 롤백 주간계획 ${unique}`).click();
 
-  await page.getByPlaceholder("할일 제목").fill(`e2e 롤백 할일 ${unique}`);
+  await page.getByPlaceholder("일간 목표 제목").fill(`e2e 롤백 할일 ${unique}`);
   await page.getByRole("button", { name: "추가" }).click();
   await expect(page.getByText(`e2e 롤백 할일 ${unique}`)).toBeVisible();
 

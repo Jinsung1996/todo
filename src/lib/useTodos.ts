@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
 /**
@@ -56,12 +57,38 @@ export function useTodos() {
     [patchTodo]
   );
 
-  const toggleDone = useCallback(
-    (todoId: string, done: boolean) =>
-      patchTodo(todoId, { status: done ? "DONE" : "TODO" }, (t) => ({
+  // 진행 전/진행 중/완료 is always an explicit pick (a select in the
+  // calendar, buttons on the detail page) — nothing here ever flips a
+  // 진행 중 item to 완료 on its own.
+  const setStatus = useCallback(
+    (todoId: string, status: TodoStatus) =>
+      patchTodo(todoId, { status }, (t) => ({ ...t, status })),
+    [patchTodo]
+  );
+
+  // 30-minute increments, driven by dragging the calendar block's bottom
+  // edge — the block's height on the grid is derived straight from
+  // durationMinutes, so this is the only thing that needs to change to
+  // grow/shrink it visually.
+  const resizeTodo = useCallback(
+    (todoId: string, durationMinutes: number) =>
+      patchTodo(todoId, { durationMinutes }, (t) => ({ ...t, durationMinutes })),
+    [patchTodo]
+  );
+
+  // Checking off a recurring todo (아침/점심/저녁 등) for today never touches
+  // `status` — it only ever stores *today's* date here, or clears it back
+  // to null. See src/lib/recurring.ts for how that gets turned into a
+  // DONE/TODO display and why tomorrow it's unchecked again with nothing to
+  // re-create.
+  const toggleRecurringToday = useCallback(
+    (todoId: string, checked: boolean) => {
+      const value = checked ? dateKey() : null;
+      return patchTodo(todoId, { lastCompletedDate: value }, (t) => ({
         ...t,
-        status: (done ? "DONE" : "TODO") as TodoStatus,
-      })),
+        lastCompletedDate: value,
+      }));
+    },
     [patchTodo]
   );
 
@@ -82,5 +109,15 @@ export function useTodos() {
     [patchTodo]
   );
 
-  return { todos, loading, reload, moveTodo, toggleDone, unassign, assignToDay };
+  return {
+    todos,
+    loading,
+    reload,
+    moveTodo,
+    setStatus,
+    resizeTodo,
+    toggleRecurringToday,
+    unassign,
+    assignToDay,
+  };
 }
