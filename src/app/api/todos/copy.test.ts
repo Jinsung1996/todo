@@ -8,6 +8,7 @@ import Todo from "@/models/Todo";
 import User from "@/models/User";
 import * as todosRoute from "./route";
 import * as copyRoute from "./[todoId]/copy/route";
+import * as todoRoute from "./[todoId]/route";
 
 beforeAll(async () => {
   await dbConnect();
@@ -90,6 +91,49 @@ describe("POST /api/todos/[todoId]/copy", () => {
       params(mine._id)
     );
     expect(bad.status).toBe(400);
+    const impossible = await copyRoute.POST(
+      me(`/api/todos/${mine._id}/copy`, { scheduledDate: "2026-13-45" }),
+      params(mine._id)
+    );
+    expect(impossible.status).toBe(400);
     expect(await Todo.countDocuments({})).toBe(1);
+  });
+});
+
+describe("🔁 templates stay off the grid", () => {
+  it("rejects creating a template with a date, and clears placement when one becomes a template", async () => {
+    const me = await login("me");
+    const rejected = await todosRoute.POST(
+      me("/api/todos", { title: "점심식사", isRecurring: true, scheduledDate: "2026-10-21" })
+    );
+    expect(rejected.status).toBe(400);
+
+    const placed = await (
+      await todosRoute.POST(me("/api/todos", { title: "점심식사", scheduledDate: "2026-10-21" }))
+    ).json();
+    const patched = await todoRoute.PATCH(
+      me(`/api/todos/${placed._id}`, { isRecurring: true }),
+      params(placed._id)
+    );
+    const template = await patched.json();
+    expect(template.isRecurring).toBe(true);
+    expect(template.scheduledDate ?? null).toBeNull();
+    expect(template.startTime ?? null).toBeNull();
+  });
+
+  it("doesn't let a legacy placed template block auto-slotting", async () => {
+    const me = await login("me");
+    const user = await User.findOne({ githubId: "me" });
+    await Todo.create({
+      title: "옛 점심식사",
+      isRecurring: true,
+      scheduledDate: "2026-10-21",
+      startTime: "07:00",
+      userId: user!._id,
+    });
+    const meeting = await (
+      await todosRoute.POST(me("/api/todos", { title: "회의", scheduledDate: "2026-10-21" }))
+    ).json();
+    expect(meeting.startTime).toBe("07:00");
   });
 });

@@ -101,7 +101,10 @@ export function useTodos() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scheduledDate: date, startTime }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      alert("일정을 추가하지 못했어요. 다시 시도해 주세요.");
+      return;
+    }
     const created: Todo = await res.json();
     setTodos((prev) => [...prev, created]);
   }, []);
@@ -114,7 +117,10 @@ export function useTodos() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, scheduledDate: date }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      alert(`"${title}" 일정을 추가하지 못했어요. 다시 시도해 주세요.`);
+      return;
+    }
     const created: Todo = await res.json();
     setTodos((prev) => [...prev, created]);
   }, []);

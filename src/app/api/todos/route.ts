@@ -5,7 +5,7 @@ import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { getCurrentUser } from "@/lib/currentUser";
 import { normalizeCategoryInput } from "@/lib/category";
-import { DATE_KEY_RE, DEFAULT_DURATION_MINUTES } from "@/lib/schedule";
+import { DEFAULT_DURATION_MINUTES, isDateKey } from "@/lib/schedule";
 import { openSlotOn } from "@/lib/autoSlot";
 
 export async function GET(request: NextRequest) {
@@ -65,19 +65,23 @@ export async function POST(request: NextRequest) {
   }
   // Set by the month calendar's per-day "+" — an appointment entered ahead
   // of time straight onto its day, auto-placed in the next open time slot.
-  if (
-    scheduledDate !== undefined &&
-    (typeof scheduledDate !== "string" || !DATE_KEY_RE.test(scheduledDate))
-  ) {
+  if (scheduledDate !== undefined && !isDateKey(scheduledDate)) {
     return NextResponse.json(
       { error: "scheduledDate must be a YYYY-MM-DD string" },
+      { status: 400 }
+    );
+  }
+  // A 🔁 template is never placed itself — see src/lib/recurring.ts.
+  if (scheduledDate !== undefined && isRecurring === true) {
+    return NextResponse.json(
+      { error: "a recurring todo can't have a scheduledDate" },
       { status: 400 }
     );
   }
 
   await dbConnect();
   const placement =
-    typeof scheduledDate === "string"
+    isDateKey(scheduledDate)
       ? {
           scheduledDate,
           startTime: await openSlotOn(user._id, scheduledDate, DEFAULT_DURATION_MINUTES),

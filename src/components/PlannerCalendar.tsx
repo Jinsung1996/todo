@@ -6,7 +6,10 @@ import {
   DndContext,
   type DragEndEvent,
   type DragStartEvent,
+  type CollisionDetection,
   PointerSensor,
+  pointerWithin,
+  rectIntersection,
   useDraggable,
   useDroppable,
   useSensor,
@@ -296,6 +299,14 @@ function Tray({ todos, categories }: { todos: Todo[]; categories: Category[] }) 
 
 type View = "week" | "month";
 
+// The day under the *pointer* wins, not the one the dragged chip's box
+// overlaps most — a wide chip grabbed by one end would otherwise land on
+// the neighbouring day while its time came from the pointer.
+const pointerFirst: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : rectIntersection(args);
+};
+
 function addDays(d: Date, days: number): Date {
   const next = new Date(d);
   next.setDate(next.getDate() + days);
@@ -354,6 +365,12 @@ export function PlannerCalendar({
   // lands at the time slot under the cursor (e.g. 오전 공부 vs 오후 공부)
   // instead of just the next free slot.
   const pointerY = useRef<number | null>(null);
+  // Stable across re-renders so stopTracking always removes the very
+  // listener handleDragStart added, even if todos update mid-drag.
+  const trackPointer = useRef((e: PointerEvent) => {
+    pointerY.current = e.clientY;
+  }).current;
+  const stickyHeader = useRef<HTMLDivElement>(null);
 
   const today = dateKey();
   const thisMonth = firstOfMonth(new Date());
@@ -366,10 +383,6 @@ export function PlannerCalendar({
     .filter(isScheduled)
     .filter((t) => weekKeys.includes(t.scheduledDate));
   const chips = trayTodos(todos);
-
-  function trackPointer(e: PointerEvent) {
-    pointerY.current = e.clientY;
-  }
 
   function handleDragStart(event: DragStartEvent) {
     const start = event.activatorEvent as PointerEvent | null;
@@ -400,7 +413,13 @@ export function PlannerCalendar({
     stopTracking();
     const { active, delta, over } = event;
     const rawId = String(active.id);
-    const drop = over?.data.current as DayDropData | undefined;
+    // The sticky header covers the tops of the columns once scrolled; a
+    // drop released over it (e.g. a short drag inside the tray) is not a
+    // drop onto whatever column happens to be hidden underneath.
+    const headerBottom = stickyHeader.current?.getBoundingClientRect().bottom;
+    const overHeader =
+      pointerY.current !== null && headerBottom !== undefined && pointerY.current < headerBottom;
+    const drop = overHeader ? undefined : (over?.data.current as DayDropData | undefined);
 
     if (rawId.startsWith(CHIP_ID_PREFIX)) {
       if (!drop) return;
@@ -482,13 +501,14 @@ export function PlannerCalendar({
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={pointerFirst}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={stopTracking}
     >
       {/* Sticky so the tray and day headers stay in reach while scrolling
           down the (tall) time grid to drop something into the evening. */}
-      <div className="sticky top-0 z-30 flex flex-col gap-2 bg-canvas pb-1">
+      <div ref={stickyHeader} className="sticky top-0 z-30 flex flex-col gap-2 bg-canvas pb-1">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-sm border border-hairline p-0.5" role="tablist">
             {(

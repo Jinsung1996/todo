@@ -17,6 +17,8 @@ export async function openSlotOn(
     userId,
     ...(excludeId ? { _id: { $ne: excludeId } } : {}),
     startTime: { $ne: null },
+    // Hidden 🔁 templates (legacy placements) don't occupy the grid.
+    isRecurring: { $ne: true },
   }).select("startTime durationMinutes");
   return nextAvailableSlot(
     siblings.map((t) => ({

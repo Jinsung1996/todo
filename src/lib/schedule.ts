@@ -5,7 +5,15 @@ export const GRID_END_MINUTES = 23 * 60; // 23:00
 export const DEFAULT_DURATION_MINUTES = 60;
 export const SLOT_STEP_MINUTES = 30;
 export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-export const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A real calendar date as "YYYY-MM-DD" (rejects e.g. 2026-13-45). */
+export function isDateKey(value: unknown): value is string {
+  if (typeof value !== "string" || !DATE_KEY_RE.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+}
 
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);

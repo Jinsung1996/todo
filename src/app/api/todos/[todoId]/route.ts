@@ -109,6 +109,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "isRecurring must be a boolean" }, { status: 400 });
     }
     update.isRecurring = isRecurring;
+    // A 🔁 template lives in the tray only (see src/lib/recurring.ts), so a
+    // placement it had as a one-off would be invisible yet still block
+    // auto-slotting — clear it.
+    if (isRecurring) {
+      update.scheduledDate = null;
+      update.startTime = null;
+    }
   }
   // Set by the calendar/daily checkbox when checking off a recurring todo
   // for today (or clearing it back out) — see src/lib/useTodos.ts's
@@ -130,7 +137,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // the next open slot in the week calendar's time grid, like writing it on
   // the next empty line of a notepad — the user doesn't have to hand-place it.
   let autoSlotDate: string | null = null;
-  if (scheduledDate !== undefined) {
+  if (scheduledDate !== undefined && update.isRecurring !== true) {
     if (scheduledDate === null) {
       update.scheduledDate = null;
       // A todo with no day shouldn't keep a stale time slot, unless the

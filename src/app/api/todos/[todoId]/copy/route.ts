@@ -5,7 +5,7 @@ import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
-import { DATE_KEY_RE, DEFAULT_DURATION_MINUTES, TIME_RE } from "@/lib/schedule";
+import { DEFAULT_DURATION_MINUTES, isDateKey, TIME_RE } from "@/lib/schedule";
 import { openSlotOn } from "@/lib/autoSlot";
 
 type Params = { params: Promise<{ todoId: string }> };
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!parsed.ok) return parsed.response;
   const { scheduledDate, startTime } = parsed.data;
 
-  if (typeof scheduledDate !== "string" || !DATE_KEY_RE.test(scheduledDate)) {
+  if (!isDateKey(scheduledDate)) {
     return NextResponse.json(
       { error: "scheduledDate must be a YYYY-MM-DD string" },
       { status: 400 }
