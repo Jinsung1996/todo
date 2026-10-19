@@ -1,7 +1,10 @@
 /** Google-Calendar-style week grid bounds and auto time-slotting for todos. */
 
-export const GRID_START_MINUTES = 7 * 60; // 07:00
-export const GRID_END_MINUTES = 23 * 60; // 23:00
+// The grid covers the whole day so 새벽 일정 have a place too; it opens
+// scrolled to DAY_START_MINUTES, where auto-placement also starts looking.
+export const GRID_START_MINUTES = 0; // 00:00
+export const GRID_END_MINUTES = 24 * 60; // 24:00
+export const DAY_START_MINUTES = 7 * 60; // 07:00
 export const DEFAULT_DURATION_MINUTES = 60;
 export const SLOT_STEP_MINUTES = 30;
 export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -39,7 +42,7 @@ export interface TimeBlock {
 
 /**
  * The first open slot of `durationMinutes` on a day already holding
- * `existing` blocks — scanning forward from GRID_START_MINUTES in
+ * `existing` blocks — scanning forward from DAY_START_MINUTES in
  * SLOT_STEP_MINUTES steps, like a notebook filling in the next free line.
  * If the grid window is fully booked, stacks right after the last existing
  * block instead of refusing to schedule (a todo entered for "today" should
@@ -57,7 +60,7 @@ export function nextAvailableSlot(
     .sort((a, b) => a.start - b.start);
 
   for (
-    let candidate = GRID_START_MINUTES;
+    let candidate = DAY_START_MINUTES;
     candidate + durationMinutes <= GRID_END_MINUTES;
     candidate += SLOT_STEP_MINUTES
   ) {
@@ -66,6 +69,6 @@ export function nextAvailableSlot(
     if (!overlaps) return minutesToTime(candidate);
   }
 
-  const lastEnd = busy.length > 0 ? Math.max(...busy.map((b) => b.end)) : GRID_START_MINUTES;
+  const lastEnd = busy.length > 0 ? Math.max(...busy.map((b) => b.end)) : DAY_START_MINUTES;
   return minutesToTime(lastEnd);
 }

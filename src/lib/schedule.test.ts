@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  GRID_START_MINUTES,
+  DAY_START_MINUTES,
   minutesToTime,
   nextAvailableSlot,
   snapMinutes,
@@ -27,7 +27,7 @@ describe("snapMinutes", () => {
 
 describe("nextAvailableSlot", () => {
   it("places the first todo of the day at the grid start", () => {
-    expect(nextAvailableSlot([], 60)).toBe(minutesToTime(GRID_START_MINUTES));
+    expect(nextAvailableSlot([], 60)).toBe(minutesToTime(DAY_START_MINUTES));
   });
 
   it("skips past an existing block to find the next free slot", () => {
@@ -43,10 +43,10 @@ describe("nextAvailableSlot", () => {
     expect(nextAvailableSlot(existing, 30)).toBe("08:00");
   });
 
-  it("stacks after the last block once the grid window is fully booked", () => {
-    // A single block spanning the entire 07:00-23:00 grid leaves no gap for
-    // a new 60-minute todo, so it should land right after the grid ends.
-    const existing = [{ startTime: "07:00", durationMinutes: 16 * 60 }];
-    expect(nextAvailableSlot(existing, 60)).toBe("23:00");
+  it("stacks after the last block once the rest of the day is fully booked", () => {
+    // A single block spanning 07:00-24:00 leaves no gap for a new 60-minute
+    // todo from the day's start onward, so it lands right after that block.
+    const existing = [{ startTime: "07:00", durationMinutes: 17 * 60 }];
+    expect(nextAvailableSlot(existing, 60)).toBe("00:00");
   });
 });

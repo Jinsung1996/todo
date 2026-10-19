@@ -4,6 +4,7 @@ import {
   dragElementBy,
   dragElementTo,
   findTodoByTitle,
+  HOUR_PX,
   loginAsTestUser,
 } from "./helpers";
 
@@ -51,7 +52,7 @@ test("대시보드 캘린더에서 할일을 끌어다 당일 일정을 만들�
   const scheduleResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
-  await dragElementTo(page, chip, todayColumn);
+  await dragElementTo(page, chip, todayColumn, HOUR_PX * 9);
   await scheduleResponse;
 
   const block = page.locator("[data-event-block]", { hasText: todoName });
@@ -123,7 +124,7 @@ test("대시보드 캘린더에서 할일을 끌어다 당일 일정을 만들�
   const rescheduleResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
-  await dragElementTo(page, page.locator("[data-unscheduled-chip]", { hasText: todoName }), todayColumn);
+  await dragElementTo(page, page.locator("[data-unscheduled-chip]", { hasText: todoName }), todayColumn, HOUR_PX * 9);
   await rescheduleResponse;
 
   const rescheduled = await findTodoByTitle(page, todoName);

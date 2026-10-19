@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { deleteCategoryByName, dragElementTo, findTodoByTitle, loginAsTestUser } from "./helpers";
+import {
+  deleteCategoryByName,
+  dragElementTo,
+  findTodoByTitle,
+  HOUR_PX,
+  loginAsTestUser,
+} from "./helpers";
 
 function todayKey(): string {
   const d = new Date();
@@ -45,7 +51,7 @@ test("일간 목표 페이지에서 목표 없이 바로 추가한 일정도 대
   const scheduleResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
-  await dragElementTo(page, chip, todayColumn);
+  await dragElementTo(page, chip, todayColumn, HOUR_PX * 9);
   await scheduleResponse;
 
   await expect(page.locator("[data-event-block]", { hasText: todoName })).toBeVisible();
