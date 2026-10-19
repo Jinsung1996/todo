@@ -6,9 +6,8 @@ import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
 import { normalizeCategoryInput } from "@/lib/category";
-import { DEFAULT_DURATION_MINUTES, nextAvailableSlot } from "@/lib/schedule";
-
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+import { DEFAULT_DURATION_MINUTES, TIME_RE } from "@/lib/schedule";
+import { openSlotOn } from "@/lib/autoSlot";
 
 type Params = { params: Promise<{ todoId: string }> };
 
@@ -110,6 +109,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "isRecurring must be a boolean" }, { status: 400 });
     }
     update.isRecurring = isRecurring;
+    // A 🔁 template lives in the tray only (see src/lib/recurring.ts), so a
+    // placement it had as a one-off would be invisible yet still block
+    // auto-slotting — clear it.
+    if (isRecurring) {
+      update.scheduledDate = null;
+      update.startTime = null;
+    }
   }
   // Set by the calendar/daily checkbox when checking off a recurring todo
   // for today (or clearing it back out) — see src/lib/useTodos.ts's
@@ -131,7 +137,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // the next open slot in the week calendar's time grid, like writing it on
   // the next empty line of a notepad — the user doesn't have to hand-place it.
   let autoSlotDate: string | null = null;
-  if (scheduledDate !== undefined) {
+  if (scheduledDate !== undefined && update.isRecurring !== true) {
     if (scheduledDate === null) {
       update.scheduledDate = null;
       // A todo with no day shouldn't keep a stale time slot, unless the
@@ -160,20 +166,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Only auto-place a todo that doesn't already have a time — moving an
     // already-scheduled todo to a different day keeps its existing time.
     if (!current.startTime) {
-      const siblings = await Todo.find({
-        scheduledDate: autoSlotDate,
-        userId: user._id,
-        _id: { $ne: todoId },
-        startTime: { $ne: null },
-      }).select("startTime durationMinutes");
-      update.startTime = nextAvailableSlot(
-        siblings.map((t) => ({
-          startTime: t.startTime as string,
-          durationMinutes: t.durationMinutes ?? DEFAULT_DURATION_MINUTES,
-        })),
+      update.startTime = await openSlotOn(
+        user._id,
+        autoSlotDate,
         (update.durationMinutes as number | undefined) ??
           current.durationMinutes ??
-          DEFAULT_DURATION_MINUTES
+          DEFAULT_DURATION_MINUTES,
+        todoId
       );
     }
   }

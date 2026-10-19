@@ -5,6 +5,8 @@ import { toJSON } from "@/lib/serialize";
 import { parseJsonBody } from "@/lib/request";
 import { getCurrentUser } from "@/lib/currentUser";
 import { normalizeCategoryInput } from "@/lib/category";
+import { DEFAULT_DURATION_MINUTES, isDateKey } from "@/lib/schedule";
+import { openSlotOn } from "@/lib/autoSlot";
 
 export async function GET(request: NextRequest) {
   const status = request.nextUrl.searchParams.get("status");
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
-  const { title, description, category, isRecurring } = parsed.data;
+  const { title, description, category, isRecurring, scheduledDate } = parsed.data;
 
   if (typeof title !== "string" || !title) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
@@ -61,9 +63,32 @@ export async function POST(request: NextRequest) {
   if (isRecurring !== undefined && typeof isRecurring !== "boolean") {
     return NextResponse.json({ error: "isRecurring must be a boolean" }, { status: 400 });
   }
+  // Set by the month calendar's per-day "+" — an appointment entered ahead
+  // of time straight onto its day, auto-placed in the next open time slot.
+  if (scheduledDate !== undefined && !isDateKey(scheduledDate)) {
+    return NextResponse.json(
+      { error: "scheduledDate must be a YYYY-MM-DD string" },
+      { status: 400 }
+    );
+  }
+  // A 🔁 template is never placed itself — see src/lib/recurring.ts.
+  if (scheduledDate !== undefined && isRecurring === true) {
+    return NextResponse.json(
+      { error: "a recurring todo can't have a scheduledDate" },
+      { status: 400 }
+    );
+  }
 
   await dbConnect();
+  const placement =
+    isDateKey(scheduledDate)
+      ? {
+          scheduledDate,
+          startTime: await openSlotOn(user._id, scheduledDate, DEFAULT_DURATION_MINUTES),
+        }
+      : {};
   const todo = await Todo.create({
+    ...placement,
     title,
     description: typeof description === "string" ? description : undefined,
     category: categoryResult.category ?? undefined,

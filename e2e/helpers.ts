@@ -1,14 +1,35 @@
 import type { Locator, Page } from "@playwright/test";
 
-export async function dragElementTo(page: Page, source: Locator, target: Locator) {
+// dnd-kit swallows every click for 50ms after a drop (its PointerSensor
+// detaches the click-blocking listener on a 50ms timer) — a person can't
+// click that fast, but a test can, so let that window pass.
+async function releaseDrag(page: Page) {
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+}
+
+/**
+ * Drags `source` onto `target` — its center, or `offsetY` px below its top
+ * edge when given (the week grid's columns are taller than the viewport,
+ * and where in a column you drop decides the time slot). The drop point is
+ * kept inside the viewport either way.
+ */
+export async function dragElementTo(
+  page: Page,
+  source: Locator,
+  target: Locator,
+  offsetY?: number
+) {
   const sourceBox = await source.boundingBox();
   const targetBox = await target.boundingBox();
+  const viewport = page.viewportSize();
   if (!sourceBox || !targetBox) throw new Error("could not locate drag source/target");
 
   const startX = sourceBox.x + sourceBox.width / 2;
   const startY = sourceBox.y + sourceBox.height / 2;
   const endX = targetBox.x + targetBox.width / 2;
-  const endY = targetBox.y + targetBox.height / 2;
+  const wantedY = targetBox.y + (offsetY ?? targetBox.height / 2);
+  const endY = viewport ? Math.min(wantedY, viewport.height - 10) : wantedY;
 
   await page.mouse.move(startX, startY);
   await page.mouse.down();
@@ -19,7 +40,7 @@ export async function dragElementTo(page: Page, source: Locator, target: Locator
       startY + ((endY - startY) * i) / steps
     );
   }
-  await page.mouse.up();
+  await releaseDrag(page);
 }
 
 /** Drags `source` by a fixed pixel offset, for grids with no separate drop target. */
@@ -36,7 +57,7 @@ export async function dragElementBy(page: Page, source: Locator, dx: number, dy:
   for (let i = 1; i <= steps; i++) {
     await page.mouse.move(startX + (dx * i) / steps, startY + (dy * i) / steps);
   }
-  await page.mouse.up();
+  await releaseDrag(page);
 }
 
 export async function loginAsTestUser(page: Page) {

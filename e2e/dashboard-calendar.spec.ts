@@ -135,7 +135,8 @@ test("대시보드 캘린더에서 할일을 끌어다 당일 일정을 만들�
   );
   // Drag from the dedicated handle strip, not the block body (which is now
   // mostly taken up by the status select and duration buttons).
-  await dragElementBy(page, finalBlock.locator("[data-drag-handle]"), 0, 24); // one half-hour row
+  await finalBlock.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await dragElementBy(page, finalBlock.locator("[data-drag-handle]"), 0, 48); // one half-hour row
   await moveResponse;
 
   await expect(async () => {
@@ -149,14 +150,15 @@ test("대시보드 캘린더에서 할일을 끌어다 당일 일정을 만들�
     expect(moved?.startTime).toBe(expected);
   }).toPass();
 
-  // Dragging the bottom edge down by one hour (48px) extends the duration —
+  // Dragging the bottom edge down by one hour (96px) extends the duration —
   // the Google-Calendar-style resize. Also last in the test, for the same
   // raw-mouse-drag-then-click reason as above.
   const beforeResize = await findTodoByTitle(page, todoName);
   const resizeResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
-  await dragElementBy(page, finalBlock.locator("[data-resize-handle]"), 0, 48);
+  await finalBlock.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await dragElementBy(page, finalBlock.locator("[data-resize-handle]"), 0, 96);
   await resizeResponse;
 
   await expect(async () => {

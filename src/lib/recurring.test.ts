@@ -58,9 +58,12 @@ describe("isActiveToday", () => {
     ).toBe(false);
   });
 
-  it("stays pinned to today for a recurring todo regardless of its stale scheduledDate", () => {
+  it("never carries a recurring template over onto today on its own", () => {
     expect(
       isActiveToday({ scheduledDate: yesterday, startTime: "09:00", isRecurring: true })
-    ).toBe(true);
+    ).toBe(false);
+    expect(isActiveToday({ scheduledDate: today, startTime: "09:00", isRecurring: true })).toBe(
+      false
+    );
   });
 });

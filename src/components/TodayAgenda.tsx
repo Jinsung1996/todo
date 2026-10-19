@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { effectiveStatus, isActiveToday } from "@/lib/recurring";
+import { weeklyProgress } from "@/lib/progress";
+import { isActiveToday } from "@/lib/recurring";
 import type { Todo, TodoStatus } from "@/types";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]; // Date#getDay(): 0=Sun
@@ -29,27 +30,41 @@ function formatDateHeading(date: Date): string {
 }
 
 export function TodayAgenda({ date, todos }: { date: Date; todos: Todo[] }) {
-  // isActiveToday always means *today* specifically (recurring todos stay
-  // pinned there regardless of their stored scheduledDate) — this panel is
-  // always meant to show today, so `date` is really just for the heading.
+  // isActiveToday always means *today* specifically — this panel is always
+  // meant to show today, so `date` is really just for the heading.
   const items = todos
     .filter((t): t is Todo & { startTime: string } => isActiveToday(t) && Boolean(t.startTime))
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const doneCount = items.filter((t) => t.status === "DONE").length;
+  const percent = weeklyProgress(items);
 
   return (
     <aside
       data-today-agenda
-      className="flex w-56 shrink-0 flex-col gap-3 rounded-md border border-hairline p-3"
+      className="sticky top-4 flex max-h-[calc(100vh-2rem)] w-60 shrink-0 flex-col gap-3 self-start rounded-md border border-hairline p-3"
     >
       <div>
         <p className="text-xs text-muted">오늘</p>
         <h2 className="text-base font-bold text-ink">{formatDateHeading(date)}</h2>
       </div>
+      <div data-today-progress className="flex flex-col gap-1 rounded-sm bg-surface-soft p-2">
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs text-muted">일간 완료</span>
+          <span className="text-[11px] text-muted">
+            {doneCount} / {items.length}
+          </span>
+        </div>
+        <span className="text-2xl font-bold text-ink">{percent}%</span>
+        <div className="h-2 rounded-full bg-surface-strong">
+          <div
+            className="h-2 rounded-full bg-primary transition-all"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
       <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
         {items.map((todo) => {
-          // A recurring todo's real status stays TODO forever — show
-          // whether it's done *today* instead (see src/lib/recurring.ts).
-          const status = effectiveStatus(todo);
+          const status = todo.status;
           return (
             <li key={todo._id}>
               <Link
@@ -57,10 +72,7 @@ export function TodayAgenda({ date, todos }: { date: Date; todos: Todo[] }) {
                 data-agenda-item={todo._id}
                 className={`flex flex-col gap-0.5 rounded-sm border px-2 py-1.5 text-xs transition-shadow hover:shadow-elevated ${STATUS_STYLE[status]}`}
               >
-                <span className="truncate font-medium">
-                  {todo.isRecurring && "🔁 "}
-                  {todo.title}
-                </span>
+                <span className="truncate font-medium">{todo.title}</span>
                 <span className="flex items-center justify-between text-[10px] opacity-80">
                   <span>{todo.startTime}</span>
                   <span>{STATUS_LABEL[status]}</span>

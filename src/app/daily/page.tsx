@@ -7,7 +7,6 @@ import { CategoryPicker } from "@/components/CategoryPicker";
 import { resolveCategoryStyle } from "@/lib/category";
 import { effectiveStatus, isDoneToday } from "@/lib/recurring";
 import { useCategories } from "@/lib/useCategories";
-import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
 const TABS: { key: string; label: string }[] = [
@@ -84,31 +83,10 @@ function DailyPageContent() {
     }
   }
 
-  // 아침/점심/저녁 같은 매일 반복 습관: checking it off never changes `status`
-  // (see src/lib/recurring.ts), so it never leaves the active list — only
-  // today's completion marker is set or cleared.
-  async function toggleRecurring(todoId: string, checked: boolean) {
-    const value = checked ? dateKey() : null;
-    const previous = todos.find((t) => t._id === todoId)?.lastCompletedDate ?? null;
-    setTodos((prev) =>
-      prev.map((t) => (t._id === todoId ? { ...t, lastCompletedDate: value } : t))
-    );
-
-    try {
-      const res = await fetch(`/api/todos/${todoId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lastCompletedDate: value }),
-      });
-      if (!res.ok) throw new Error("patch failed");
-    } catch {
-      setTodos((prev) =>
-        prev.map((t) => (t._id === todoId ? { ...t, lastCompletedDate: previous } : t))
-      );
-    }
-  }
-
-  const doneCount = todos.filter(isDoneToday).length;
+  // 🔁 templates are never checked off themselves — each copy placed on the
+  // calendar has its own status (see src/lib/recurring.ts).
+  const countable = todos.filter((t) => !t.isRecurring);
+  const doneCount = countable.filter(isDoneToday).length;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
@@ -143,8 +121,8 @@ function DailyPageContent() {
             onChange={(e) => setIsRecurring(e.target.checked)}
             className="h-3.5 w-3.5 accent-primary"
           />
-          매일 반복 (아침/점심/저녁처럼 — 체크해도 목록에서 사라지지 않고 다음 날 다시 체크할 수
-          있어요)
+          반복 일정 (점심식사처럼 — 캘린더 위쪽 목록에 항상 남아 있어서, 필요한 날마다 끌어다
+          놓으면 그날 일정으로 하나씩 추가돼요)
         </label>
         <p className="text-xs text-muted-soft">
           연간 목표/주간 목표 없이 바로 추가하는 일정이에요. 반복 일상이나 약속처럼 목표에 속하지
@@ -172,9 +150,9 @@ function DailyPageContent() {
         <p className="text-body-text">불러오는 중...</p>
       ) : (
         <>
-          {todos.length > 0 && (
+          {countable.length > 0 && (
             <p className="text-sm text-muted">
-              {doneCount} / {todos.length} 완료
+              {doneCount} / {countable.length} 완료
             </p>
           )}
           <ul className="flex flex-col gap-2">
@@ -192,26 +170,27 @@ function DailyPageContent() {
                     }`}
                   >
                     <span className={`h-2 w-2 shrink-0 rounded-full ${cat.dot}`} aria-hidden />
-                    <input
-                      type="checkbox"
-                      checked={done}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        if (todo.isRecurring) {
-                          toggleRecurring(todo._id, e.target.checked);
-                        } else {
+                    {todo.isRecurring ? (
+                      <span className="w-4 text-center text-sm" title="반복 일정" aria-hidden>
+                        🔁
+                      </span>
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={done}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
                           toggleDone(todo._id, e.target.checked);
-                        }
-                      }}
-                      className="h-4 w-4 accent-emerald-600"
-                    />
+                        }}
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                    )}
                     <span
                       className={`flex-1 ${
                         done ? "text-emerald-700 line-through dark:text-emerald-400" : "text-ink"
                       }`}
                     >
-                      {todo.isRecurring && "🔁 "}
                       {todo.title}
                     </span>
                     <span
@@ -219,7 +198,7 @@ function DailyPageContent() {
                         done ? "text-emerald-600 dark:text-emerald-400" : "text-muted"
                       }`}
                     >
-                      {effectiveStatus(todo)}
+                      {todo.isRecurring ? "반복" : effectiveStatus(todo)}
                     </span>
                   </Link>
                 </li>
