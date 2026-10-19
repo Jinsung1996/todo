@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
 /**
@@ -76,22 +75,6 @@ export function useTodos() {
     [patchTodo]
   );
 
-  // Checking off a recurring todo (아침/점심/저녁 등) for today never touches
-  // `status` — it only ever stores *today's* date here, or clears it back
-  // to null. See src/lib/recurring.ts for how that gets turned into a
-  // DONE/TODO display and why tomorrow it's unchecked again with nothing to
-  // re-create.
-  const toggleRecurringToday = useCallback(
-    (todoId: string, checked: boolean) => {
-      const value = checked ? dateKey() : null;
-      return patchTodo(todoId, { lastCompletedDate: value }, (t) => ({
-        ...t,
-        lastCompletedDate: value,
-      }));
-    },
-    [patchTodo]
-  );
-
   const unassign = useCallback(
     (todoId: string) =>
       patchTodo(todoId, { scheduledDate: null, startTime: null }, (t) => ({
@@ -109,6 +92,33 @@ export function useTodos() {
     [patchTodo]
   );
 
+  // Another occurrence of `todoId` on `date` (오전 공부 + 오후 공부, or a
+  // 🔁 반복 일정 dragged onto the day it's needed) — the server copies it;
+  // without `startTime` it auto-fills the next open slot.
+  const copyTodo = useCallback(async (todoId: string, date: string, startTime?: string) => {
+    const res = await fetch(`/api/todos/${todoId}/copy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduledDate: date, startTime }),
+    });
+    if (!res.ok) return;
+    const created: Todo = await res.json();
+    setTodos((prev) => [...prev, created]);
+  }, []);
+
+  // A brand-new standalone 일간 목표 entered straight onto a day (the month
+  // calendar's per-day "+"), e.g. an appointment months ahead.
+  const createOnDate = useCallback(async (title: string, date: string) => {
+    const res = await fetch("/api/todos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, scheduledDate: date }),
+    });
+    if (!res.ok) return;
+    const created: Todo = await res.json();
+    setTodos((prev) => [...prev, created]);
+  }, []);
+
   return {
     todos,
     loading,
@@ -116,8 +126,9 @@ export function useTodos() {
     moveTodo,
     setStatus,
     resizeTodo,
-    toggleRecurringToday,
     unassign,
     assignToDay,
+    copyTodo,
+    createOnDate,
   };
 }

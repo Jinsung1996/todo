@@ -143,8 +143,8 @@ function DailyPageContent() {
             onChange={(e) => setIsRecurring(e.target.checked)}
             className="h-3.5 w-3.5 accent-primary"
           />
-          매일 반복 (아침/점심/저녁처럼 — 체크해도 목록에서 사라지지 않고 다음 날 다시 체크할 수
-          있어요)
+          반복 일정 (점심식사처럼 — 캘린더 위쪽 목록에 항상 남아 있어서, 필요한 날마다 끌어다
+          놓으면 그날 일정으로 하나씩 추가돼요)
         </label>
         <p className="text-xs text-muted-soft">
           연간 목표/주간 목표 없이 바로 추가하는 일정이에요. 반복 일상이나 약속처럼 목표에 속하지

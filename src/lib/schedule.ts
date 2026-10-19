@@ -4,6 +4,8 @@ export const GRID_START_MINUTES = 7 * 60; // 07:00
 export const GRID_END_MINUTES = 23 * 60; // 23:00
 export const DEFAULT_DURATION_MINUTES = 60;
 export const SLOT_STEP_MINUTES = 30;
+export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+export const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);

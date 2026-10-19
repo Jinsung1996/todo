@@ -28,14 +28,15 @@ export function effectiveStatus(todo: StatusFields): TodoStatus {
 }
 
 /**
- * Once a recurring todo has been dragged onto the calendar at least once
- * (it has a startTime), it stays pinned to *today*'s column every day after
- * that — rather than requiring a fresh drag each morning, which is exactly
- * the hassle this feature exists to remove. A non-recurring todo just
- * checks its literal scheduledDate.
+ * Whether `todo` sits on today's calendar column. A recurring todo
+ * (점심식사 등) is a template that stays in the calendar tray — it never
+ * carries itself over onto each new day; every day it's needed, it gets
+ * dragged on again, which places a separate copy (see
+ * src/app/api/todos/[todoId]/copy/route.ts). So the template itself never
+ * counts as placed.
  */
 export function isActiveToday(todo: PlacementFields): boolean {
+  if (todo.isRecurring) return false;
   if (!todo.scheduledDate || !todo.startTime) return false;
-  if (todo.isRecurring) return true;
   return todo.scheduledDate === dateKey();
 }

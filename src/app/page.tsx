@@ -6,12 +6,11 @@ import { NotepadCard } from "@/components/NotepadCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatCard } from "@/components/StatCard";
 import { TodayAgenda } from "@/components/TodayAgenda";
-import { WeekCalendar } from "@/components/WeekCalendar";
+import { PlannerCalendar } from "@/components/PlannerCalendar";
 import { weeklyProgress } from "@/lib/progress";
 import { isActiveToday } from "@/lib/recurring";
 import { useCategories } from "@/lib/useCategories";
 import { useTodos } from "@/lib/useTodos";
-import { startOfWeek } from "@/lib/week";
 import type { WeeklyPlan, YearlyGoal } from "@/types";
 
 function isThisWeek(week: WeeklyPlan): boolean {
@@ -29,9 +28,10 @@ export default function DashboardPage() {
     moveTodo,
     setStatus,
     resizeTodo,
-    toggleRecurringToday,
     unassign,
     assignToDay,
+    copyTodo,
+    createOnDate,
   } = useTodos();
   const { categories } = useCategories();
 
@@ -55,15 +55,8 @@ export default function DashboardPage() {
   const completionPercent = weeklyProgress(todos);
   const recentGoals = goals.slice(0, 5);
 
-  const weekStart = startOfWeek(new Date());
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-3 p-4">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 p-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <NotepadCard label="연간 목표" value={goals.length}>
           {recentGoals.map((goal) => (
@@ -106,20 +99,21 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-1 items-stretch gap-3">
-        <section className="flex flex-1 flex-col rounded-md border border-hairline p-3">
-          <div className="overflow-x-auto">
-            <WeekCalendar
-              weekDays={weekDays}
-              todos={todos}
-              categories={categories}
-              onMoveTodo={moveTodo}
-              onSetStatus={setStatus}
-              onResizeTodo={resizeTodo}
-              onToggleRecurringToday={toggleRecurringToday}
-              onUnassign={unassign}
-              onScheduleTodo={assignToDay}
-            />
-          </div>
+        {/* No overflow wrapper here: the calendar's header row is
+            position: sticky against the page scroll, which any scrolling
+            ancestor would break. */}
+        <section className="flex min-w-0 flex-1 flex-col rounded-md border border-hairline p-3">
+          <PlannerCalendar
+            todos={todos}
+            categories={categories}
+            onMoveTodo={moveTodo}
+            onSetStatus={setStatus}
+            onResizeTodo={resizeTodo}
+            onUnassign={unassign}
+            onScheduleTodo={assignToDay}
+            onCopyTodo={copyTodo}
+            onCreateOnDate={createOnDate}
+          />
         </section>
         <TodayAgenda date={new Date()} todos={todos} />
       </div>

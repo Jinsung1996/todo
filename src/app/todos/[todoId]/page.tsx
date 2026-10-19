@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CategoryPicker } from "@/components/CategoryPicker";
-import { isDoneToday } from "@/lib/recurring";
 import { useCategories } from "@/lib/useCategories";
-import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus, WeeklyPlan, YearlyGoal } from "@/types";
 
 const STATUS_LABEL: Record<TodoStatus, string> = {
@@ -85,17 +83,6 @@ export default function TodoDetailPage() {
     load();
   }
 
-  // 아침/점심/저녁 같은 매일 반복 습관: checking it off never changes `status`
-  // (see src/lib/recurring.ts) — only today's completion marker moves.
-  async function toggleRecurringToday(checked: boolean) {
-    await fetch(`/api/todos/${todoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lastCompletedDate: checked ? dateKey() : null }),
-    });
-    load();
-  }
-
   async function deleteTodo() {
     if (!confirm("이 일간 목표를 삭제할까요?")) return;
     await fetch(`/api/todos/${todoId}`, { method: "DELETE" });
@@ -126,17 +113,13 @@ export default function TodoDetailPage() {
       {todo.description && <p className="text-body-text">{todo.description}</p>}
 
       {todo.isRecurring ? (
-        // 진행 전/진행 중은 매일 반복되는 습관에는 의미가 없어요 — 오늘 했는지
-        // 안 했는지만 체크하면 되고, 체크해도 이 목록에서 사라지지 않습니다.
-        <label className="flex w-fit items-center gap-2 rounded-sm border border-hairline px-4 py-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            checked={isDoneToday(todo)}
-            onChange={(e) => toggleRecurringToday(e.target.checked)}
-            className="h-4 w-4 accent-emerald-600"
-          />
-          오늘 완료
-        </label>
+        // A 🔁 template is never placed or checked off itself — each day it's
+        // dragged onto the calendar becomes its own copy with its own status
+        // (see src/app/api/todos/[todoId]/copy/route.ts).
+        <p className="text-sm text-muted">
+          반복 일정이에요. 대시보드 캘린더 위쪽 목록에서 필요한 날·시간에 끌어다 놓으면 그날
+          일정이 하나씩 추가되고, 완료 체크는 추가된 일정마다 따로 해요.
+        </p>
       ) : (
         <div className="flex gap-2">
           {(["TODO", "DOING", "DONE"] as TodoStatus[]).map((status) => (
@@ -162,7 +145,7 @@ export default function TodoDetailPage() {
           onChange={(e) => changeIsRecurring(e.target.checked)}
           className="h-3.5 w-3.5 accent-primary"
         />
-        매일 반복 (체크해도 목록에서 사라지지 않고 다음 날 다시 체크할 수 있어요)
+        반복 일정 (캘린더 위쪽 목록에 항상 남아 있어서, 필요한 날마다 끌어다 놓을 수 있어요)
       </label>
 
       <div className="flex items-start gap-2 text-sm text-muted">

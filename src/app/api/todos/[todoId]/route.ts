@@ -6,9 +6,8 @@ import { parseJsonBody } from "@/lib/request";
 import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
 import { normalizeCategoryInput } from "@/lib/category";
-import { DEFAULT_DURATION_MINUTES, nextAvailableSlot } from "@/lib/schedule";
-
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+import { DEFAULT_DURATION_MINUTES, TIME_RE } from "@/lib/schedule";
+import { openSlotOn } from "@/lib/autoSlot";
 
 type Params = { params: Promise<{ todoId: string }> };
 
@@ -160,20 +159,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Only auto-place a todo that doesn't already have a time — moving an
     // already-scheduled todo to a different day keeps its existing time.
     if (!current.startTime) {
-      const siblings = await Todo.find({
-        scheduledDate: autoSlotDate,
-        userId: user._id,
-        _id: { $ne: todoId },
-        startTime: { $ne: null },
-      }).select("startTime durationMinutes");
-      update.startTime = nextAvailableSlot(
-        siblings.map((t) => ({
-          startTime: t.startTime as string,
-          durationMinutes: t.durationMinutes ?? DEFAULT_DURATION_MINUTES,
-        })),
+      update.startTime = await openSlotOn(
+        user._id,
+        autoSlotDate,
         (update.durationMinutes as number | undefined) ??
           current.durationMinutes ??
-          DEFAULT_DURATION_MINUTES
+          DEFAULT_DURATION_MINUTES,
+        todoId
       );
     }
   }
