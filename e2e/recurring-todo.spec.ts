@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { dragElementTo, loginAsTestUser } from "./helpers";
+import { dragElementTo, HOUR_PX, loginAsTestUser } from "./helpers";
 
 function dayKey(offsetDays = 0): string {
   const d = new Date();
@@ -42,7 +42,7 @@ test("반복 일정은 자동으로 넘어오지 않고, 끌어다 놓을 때마
   const copyResponse = page.waitForResponse(
     (res) => res.url().includes("/copy") && res.request().method() === "POST"
   );
-  await dragElementTo(page, chip, todayColumn, 200);
+  await dragElementTo(page, chip, todayColumn, HOUR_PX * 9); // ~09:00 (grid opens at 07시)
   expect((await copyResponse).status()).toBe(201);
 
   const block = page.locator("[data-event-block]", { hasText: todoName });

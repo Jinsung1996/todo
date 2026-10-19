@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { dragElementTo, loginAsTestUser } from "./helpers";
+import { dragElementTo, HOUR_PX, loginAsTestUser } from "./helpers";
 
 function dayKey(offsetDays = 0): string {
   const d = new Date();
@@ -37,14 +37,14 @@ test("같은 일간 목표를 하루에 여러 번(오전/오후) 넣고, 다음
   const placeResponse = page.waitForResponse(
     (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
   );
-  await dragElementTo(page, chip, todayColumn, 100); // ~08:00
+  await dragElementTo(page, chip, todayColumn, HOUR_PX * 8 + 10); // 08:00
   await placeResponse;
 
   // Second drop on the same day places another occurrence further down.
   const copyResponse = page.waitForResponse(
     (res) => res.url().includes("/copy") && res.request().method() === "POST"
   );
-  await dragElementTo(page, chip, todayColumn, 400); // ~11:00
+  await dragElementTo(page, chip, todayColumn, HOUR_PX * 10 + 10); // 10:00
   await copyResponse;
 
   await expect(page.locator("[data-event-block]", { hasText: todoName })).toHaveCount(2);
@@ -64,7 +64,7 @@ test("같은 일간 목표를 하루에 여러 번(오전/오후) 넣고, 다음
   const nextWeekResponse = page.waitForResponse(
     (res) => res.url().includes("/copy") && res.request().method() === "POST"
   );
-  await dragElementTo(page, chip, nextWeekColumn, 100);
+  await dragElementTo(page, chip, nextWeekColumn, HOUR_PX * 8 + 10);
   await nextWeekResponse;
   await expect(page.locator("[data-event-block]", { hasText: todoName })).toHaveCount(1);
   expect((await todosTitled(page, todoName)).map((t) => t.scheduledDate)).toContain(dayKey(7));
@@ -75,6 +75,39 @@ test("같은 일간 목표를 하루에 여러 번(오전/오후) 넣고, 다음
   for (const t of await todosTitled(page, todoName)) {
     await page.request.delete(`/api/todos/${t._id}`);
   }
+});
+
+test("주간 캘린더는 0시~24시 전체를 보여 주고 07시에서 시작하며, 새벽에도 일정을 넣을 수 있다", async ({
+  page,
+}) => {
+  const todoName = `새벽 비행기 ${Date.now()}`;
+  await loginAsTestUser(page);
+  await createStandalone(page, todoName);
+  await page.goto("/");
+
+  const scroller = page.locator("[data-week-scroller]");
+  await expect(scroller).toBeVisible();
+  // Opens scrolled to 07시, with 00시 just above.
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(HOUR_PX * 7);
+  await expect(scroller.getByText("00시")).toBeAttached();
+  await expect(scroller.getByText("23시")).toBeAttached();
+
+  await scroller.evaluate((el) => (el.scrollTop = 0));
+  const placeResponse = page.waitForResponse(
+    (res) => res.url().includes("/api/todos/") && res.request().method() === "PATCH"
+  );
+  await dragElementTo(
+    page,
+    page.locator("[data-unscheduled-chip]", { hasText: todoName }),
+    page.locator(`[data-day-column="${dayKey()}"]`),
+    HOUR_PX * 2 + 10
+  );
+  await placeResponse;
+  const [placed] = await todosTitled(page, todoName);
+  expect(placed.startTime).toBe("02:00");
+  await expect(page.locator("[data-event-block]", { hasText: todoName })).toBeVisible();
+
+  await page.request.delete(`/api/todos/${placed._id}`);
 });
 
 test("월간 캘린더(12개월)에서 몇 달 뒤 날짜에 바로 일정을 넣고, 다른 날로 옮길 수 있다", async ({

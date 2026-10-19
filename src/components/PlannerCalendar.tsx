@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -18,6 +18,7 @@ import {
 import { type DayDropData, MONTH_ITEM_ID_PREFIX, MonthGrid } from "@/components/MonthGrid";
 import { resolveCategoryStyle } from "@/lib/category";
 import {
+  DAY_START_MINUTES,
   GRID_END_MINUTES,
   GRID_START_MINUTES,
   minutesToTime,
@@ -371,6 +372,15 @@ export function PlannerCalendar({
     pointerY.current = e.clientY;
   }).current;
   const stickyHeader = useRef<HTMLDivElement>(null);
+  const gridScroller = useRef<HTMLDivElement>(null);
+  const dayHeader = useRef<HTMLDivElement>(null);
+
+  // The grid spans 00–24시 but opens at 07시, the usual start of the day;
+  // 새벽 is a scroll up away.
+  useLayoutEffect(() => {
+    if (view !== "week" || !gridScroller.current) return;
+    gridScroller.current.scrollTop = (DAY_START_MINUTES - GRID_START_MINUTES) * PX_PER_MINUTE;
+  }, [view]);
 
   const today = dateKey();
   const thisMonth = firstOfMonth(new Date());
@@ -413,13 +423,18 @@ export function PlannerCalendar({
     stopTracking();
     const { active, delta, over } = event;
     const rawId = String(active.id);
-    // The sticky header covers the tops of the columns once scrolled; a
-    // drop released over it (e.g. a short drag inside the tray) is not a
-    // drop onto whatever column happens to be hidden underneath.
-    const headerBottom = stickyHeader.current?.getBoundingClientRect().bottom;
-    const overHeader =
-      pointerY.current !== null && headerBottom !== undefined && pointerY.current < headerBottom;
-    const drop = overHeader ? undefined : (over?.data.current as DayDropData | undefined);
+    // The week columns are clipped by their scroll box, and in both views
+    // the tray/headers sit over where hidden parts of the grid may be; a
+    // drop released outside the visible grid (e.g. a short drag inside the
+    // tray) is not a drop onto whatever column is hidden underneath.
+    const visibleTop = (dayHeader.current ?? stickyHeader.current)?.getBoundingClientRect().bottom;
+    const visibleBottom = gridScroller.current?.getBoundingClientRect().bottom;
+    const y = pointerY.current;
+    const outsideGrid =
+      y !== null &&
+      ((visibleTop !== undefined && y < visibleTop) ||
+        (visibleBottom !== undefined && y > visibleBottom));
+    const drop = outsideGrid ? undefined : (over?.data.current as DayDropData | undefined);
 
     if (rawId.startsWith(CHIP_ID_PREFIX)) {
       if (!drop) return;
@@ -506,8 +521,8 @@ export function PlannerCalendar({
       onDragEnd={handleDragEnd}
       onDragCancel={stopTracking}
     >
-      {/* Sticky so the tray and day headers stay in reach while scrolling
-          down the (tall) time grid to drop something into the evening. */}
+      {/* Sticky so the tray stays in reach while scrolling down the month
+          grid; the week grid scrolls inside its own box instead. */}
       <div ref={stickyHeader} className="sticky top-0 z-30 flex flex-col gap-2 bg-canvas pb-1">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-sm border border-hairline p-0.5" role="tablist">
@@ -572,8 +587,17 @@ export function PlannerCalendar({
           </div>
         )}
         <Tray todos={chips} categories={categories} />
-        {view === "week" && (
-          <div className="flex">
+      </div>
+
+      {view === "week" ? (
+        // Its own scroll box: 24 hours is far taller than the screen, and
+        // keeping the page itself short leaves the stat cards in view.
+        <div
+          ref={gridScroller}
+          data-week-scroller
+          className="h-[calc(100vh-15rem)] min-h-[420px] overflow-y-auto"
+        >
+          <div ref={dayHeader} className="sticky top-0 z-30 flex bg-canvas">
             <div className="w-10 shrink-0" />
             {weekDays.map((date, i) => {
               const key = dateKey(date);
@@ -599,34 +623,31 @@ export function PlannerCalendar({
               );
             })}
           </div>
-        )}
-      </div>
-
-      {view === "week" ? (
-        // pt-2 leaves room for the "07시" label, which sits half a line
-        // above its row and would otherwise hide under the sticky header.
-        <div className="flex pt-2">
-          <div className="flex w-10 shrink-0 flex-col" style={{ height: GRID_HEIGHT_PX }}>
-            {Array.from({ length: (GRID_END_MINUTES - GRID_START_MINUTES) / 60 }, (_, i) => (
-              <div
-                key={i}
-                style={{ height: ROW_HEIGHT_PX }}
-                className="-translate-y-2 text-right text-[11px] text-muted-soft"
-              >
-                {String(GRID_START_MINUTES / 60 + i).padStart(2, "0")}시
-              </div>
+          {/* pt-2 leaves room for the "00시" label, which sits half a line
+              above its row and would otherwise hide under the day header. */}
+          <div className="flex pt-2">
+            <div className="flex w-10 shrink-0 flex-col" style={{ height: GRID_HEIGHT_PX }}>
+              {Array.from({ length: (GRID_END_MINUTES - GRID_START_MINUTES) / 60 }, (_, i) => (
+                <div
+                  key={i}
+                  style={{ height: ROW_HEIGHT_PX }}
+                  className="-translate-y-2 text-right text-[11px] text-muted-soft"
+                >
+                  {String(GRID_START_MINUTES / 60 + i).padStart(2, "0")}시
+                </div>
+              ))}
+            </div>
+            {weekKeys.map((key) => (
+              <DayColumn
+                key={key}
+                date={key}
+                todos={scheduled.filter((t) => t.scheduledDate === key)}
+                categories={categories}
+                onSetStatus={onSetStatus}
+                onUnassign={onUnassign}
+              />
             ))}
           </div>
-          {weekKeys.map((key) => (
-            <DayColumn
-              key={key}
-              date={key}
-              todos={scheduled.filter((t) => t.scheduledDate === key)}
-              categories={categories}
-              onSetStatus={onSetStatus}
-              onUnassign={onUnassign}
-            />
-          ))}
         </div>
       ) : (
         <MonthGrid

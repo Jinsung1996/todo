@@ -1,5 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 
+/** Week grid height of one hour (ROW_HEIGHT_PX in PlannerCalendar.tsx). */
+export const HOUR_PX = 96;
+
 // dnd-kit swallows every click for 50ms after a drop (its PointerSensor
 // detaches the click-blocking listener on a 50ms timer) — a person can't
 // click that fast, but a test can, so let that window pass.
@@ -29,7 +32,7 @@ export async function dragElementTo(
   const startY = sourceBox.y + sourceBox.height / 2;
   const endX = targetBox.x + targetBox.width / 2;
   const wantedY = targetBox.y + (offsetY ?? targetBox.height / 2);
-  const endY = viewport ? Math.min(wantedY, viewport.height - 10) : wantedY;
+  const endY = viewport ? Math.min(Math.max(wantedY, 10), viewport.height - 10) : wantedY;
 
   await page.mouse.move(startX, startY);
   await page.mouse.down();
