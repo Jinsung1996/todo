@@ -6,10 +6,12 @@ import { NotepadCard } from "@/components/NotepadCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatCard } from "@/components/StatCard";
 import { TodayAgenda } from "@/components/TodayAgenda";
+import { MobileDay } from "@/components/MobileDay";
 import { PlannerCalendar } from "@/components/PlannerCalendar";
 import { weeklyProgress } from "@/lib/progress";
 import { isActiveToday } from "@/lib/recurring";
 import { useCategories } from "@/lib/useCategories";
+import { useIsMobile } from "@/lib/useIsMobile";
 import { useTodos } from "@/lib/useTodos";
 import type { WeeklyPlan, YearlyGoal } from "@/types";
 
@@ -36,6 +38,7 @@ export default function DashboardPage() {
     createOnDate,
   } = useTodos();
   const { categories } = useCategories();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     Promise.all([
@@ -50,6 +53,26 @@ export default function DashboardPage() {
 
   if (goalsLoading || todosLoading) {
     return <main className="p-8 text-body-text">불러오는 중...</main>;
+  }
+
+  // A phone gets just the day at hand — see src/components/MobileDay.tsx.
+  if (isMobile) {
+    return (
+      <main className="flex flex-1 flex-col p-3">
+        <MobileDay
+          todos={todos}
+          categories={categories}
+          onMoveTodo={moveTodo}
+          onSetStatus={setStatus}
+          onResizeTodo={resizeTodo}
+          onUnassign={unassign}
+          onCopyTodo={copyTodo}
+          onRepeatTodo={repeatTodo}
+          onStopRepeat={stopRepeat}
+          onCreateOnDate={createOnDate}
+        />
+      </main>
+    );
   }
 
   const thisWeekPlans = weeks.filter(isThisWeek);

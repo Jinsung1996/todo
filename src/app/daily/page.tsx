@@ -92,13 +92,13 @@ function DailyPageContent() {
   const doneCount = countable.filter(isDoneToday).length;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-ink">일간 목표</h1>
 
       <form onSubmit={createStandaloneTodo} className="flex flex-col gap-1">
-        <div className="flex items-start gap-2">
+        <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
           <input
-            className="flex-1 rounded-sm border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
+            className="w-full flex-1 rounded-sm sm:w-auto border border-hairline bg-canvas px-3 py-2 text-ink focus:border-2 focus:border-ink focus:outline-none"
             placeholder="일간 목표 제목 (예: 출근, 운동, 친구 약속, 토익)"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -219,7 +219,7 @@ function DailyPageContent() {
 
 export default function DailyPage() {
   return (
-    <Suspense fallback={<main className="p-8 text-body-text">불러오는 중...</main>}>
+    <Suspense fallback={<main className="p-4 sm:p-8 text-body-text">불러오는 중...</main>}>
       <DailyPageContent />
     </Suspense>
   );
