@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CategoryPicker } from "@/components/CategoryPicker";
-import { describeRepeat } from "@/lib/repeat";
+import { RepeatEditor } from "@/components/RepeatEditor";
 import { useCategories } from "@/lib/useCategories";
 import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus, WeeklyPlan, YearlyGoal } from "@/types";
@@ -86,6 +86,20 @@ export default function TodoDetailPage() {
   }
 
   // Today's copy stays; the untouched ones after it go.
+  async function saveRepeat(changes: {
+    weekdays: number[];
+    startTime: string;
+    durationMinutes: number;
+  }) {
+    const res = await fetch(`/api/todos/${todoId}/repeat`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: dateKey(), ...changes }),
+    });
+    if (!res.ok) alert("반복 일정을 바꾸지 못했어요. 다시 시도해 주세요.");
+    load();
+  }
+
   async function stopRepeat() {
     await fetch(`/api/todos/${todoId}/repeat?after=${dateKey()}`, { method: "DELETE" });
     load();
@@ -119,6 +133,11 @@ export default function TodoDetailPage() {
         {todo.title}
       </h1>
       {todo.description && <p className="text-body-text">{todo.description}</p>}
+      {todo.repeatSourceId && (
+        <Link href={`/todos/${todo.repeatSourceId}`} className="text-sm text-primary hover:underline">
+          🔁 반복 일정에서 들어온 일정이에요 · 반복 시간/요일 한꺼번에 바꾸기 →
+        </Link>
+      )}
 
       {todo.isRecurring ? (
         // A 🔁 template is never placed or checked off itself — each day it's
@@ -131,16 +150,12 @@ export default function TodoDetailPage() {
             &ldquo;앞으로도 같은 시간에 반복&rdquo;을 고르면 매번 끌지 않아도 돼요.
           </p>
           {todo.repeat && (
-            <div className="flex items-center gap-3 text-sm text-ink">
-              <span data-repeat-rule>{describeRepeat(todo.repeat)}에 자동으로 추가 중</span>
-              <button
-                type="button"
-                onClick={stopRepeat}
-                className="text-xs text-error hover:text-error-hover"
-              >
-                반복 중지
-              </button>
-            </div>
+            <RepeatEditor
+              rule={todo.repeat}
+              durationMinutes={todo.durationMinutes ?? 60}
+              onSave={saveRepeat}
+              onStop={stopRepeat}
+            />
           )}
         </div>
       ) : (

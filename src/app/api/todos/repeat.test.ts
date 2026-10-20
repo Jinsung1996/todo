@@ -195,3 +195,70 @@ describe("extendRepeats", () => {
     expect(await Todo.countDocuments({ repeatSourceId: lunch._id, scheduledDate: target })).toBe(1);
   });
 });
+
+describe("PATCH /api/todos/[todoId]/repeat", () => {
+  it("moves every untouched copy from `from` on, and swaps the days that changed", async () => {
+    const me = await login("me");
+    const lunch = await template(me);
+    await repeatRoute.POST(
+      me(`/api/todos/${lunch._id}/repeat`, {
+        from: MON,
+        startTime: "12:00",
+        durationMinutes: 60,
+        weekdays: [1, 3, 5],
+      }),
+      params(lunch._id)
+    );
+    // Started, and removed by hand: both stay as they are.
+    await Todo.updateOne(
+      { repeatSourceId: lunch._id, scheduledDate: "2026-10-28" },
+      { $set: { status: "DOING" } }
+    );
+    await Todo.deleteOne({ repeatSourceId: lunch._id, scheduledDate: "2026-10-30" });
+
+    const res = await repeatRoute.PATCH(
+      me(
+        `/api/todos/${lunch._id}/repeat`,
+        { from: "2026-10-26", startTime: "12:30", durationMinutes: 90, weekdays: [1, 2, 5] },
+        "PATCH"
+      ),
+      params(lunch._id)
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).repeat).toMatchObject({ startTime: "12:30", weekdays: [1, 2, 5] });
+
+    const byDate = new Map(
+      (await Todo.find({ repeatSourceId: lunch._id })).map((c) => [c.scheduledDate, c])
+    );
+    expect(byDate.get(MON)?.startTime).toBe("12:00"); // before `from`
+    expect(byDate.get("2026-10-26")).toMatchObject({ startTime: "12:30", durationMinutes: 90 });
+    expect(byDate.get("2026-10-27")).toMatchObject({ startTime: "12:30", durationMinutes: 90 }); // 화, new
+    expect(byDate.get("2026-10-28")).toMatchObject({ startTime: "12:00", status: "DOING" }); // 수, started
+    expect(byDate.has("2026-11-04")).toBe(false); // 수, no longer chosen
+    expect(byDate.has("2026-10-30")).toBe(false); // removed by hand
+    expect(byDate.get("2026-11-06")?.startTime).toBe("12:30"); // 금
+    // Later windows and copies pick up the new length.
+    expect((await Todo.findById(lunch._id))?.durationMinutes).toBe(90);
+  });
+
+  it("rejects a todo that isn't repeating, and bad fields", async () => {
+    const me = await login("me");
+    const lunch = await template(me);
+    const notRepeating = await repeatRoute.PATCH(
+      me(`/api/todos/${lunch._id}/repeat`, { from: MON, startTime: "12:00" }, "PATCH"),
+      params(lunch._id)
+    );
+    expect(notRepeating.status).toBe(400);
+    await repeatRoute.POST(
+      me(`/api/todos/${lunch._id}/repeat`, { from: MON, startTime: "12:00", weekdays: EVERY_DAY }),
+      params(lunch._id)
+    );
+    for (const bad of [{ startTime: "12:00" }, { from: MON, durationMinutes: 5 }, { from: MON, weekdays: [] }]) {
+      const res = await repeatRoute.PATCH(
+        me(`/api/todos/${lunch._id}/repeat`, bad, "PATCH"),
+        params(lunch._id)
+      );
+      expect(res.status).toBe(400);
+    }
+  });
+});

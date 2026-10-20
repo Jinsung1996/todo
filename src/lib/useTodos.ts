@@ -96,34 +96,63 @@ export function useTodos() {
   // Another occurrence of `todoId` on `date` (오전 공부 + 오후 공부, or a
   // 🔁 반복 일정 dragged onto the day it's needed) — the server copies it;
   // without `startTime` it auto-fills the next open slot.
-  const copyTodo = useCallback(async (todoId: string, date: string, startTime?: string) => {
-    const res = await fetch(`/api/todos/${todoId}/copy`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scheduledDate: date, startTime }),
-    });
-    if (!res.ok) {
-      alert("일정을 추가하지 못했어요. 다시 시도해 주세요.");
-      return;
-    }
-    const created: Todo = await res.json();
-    setTodos((prev) => [...prev, created]);
-  }, []);
+  const copyTodo = useCallback(
+    async (todoId: string, date: string, startTime?: string, durationMinutes?: number) => {
+      const res = await fetch(`/api/todos/${todoId}/copy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledDate: date, startTime, durationMinutes }),
+      });
+      if (!res.ok) {
+        alert("일정을 추가하지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+      const created: Todo = await res.json();
+      setTodos((prev) => [...prev, created]);
+    },
+    []
+  );
 
   // A 🔁 template placed on `date` and, from then on, on every one of
   // `weekdays` at the same time (see src/app/api/todos/[todoId]/repeat).
   // Reloads rather than merging: the template's rule and dozens of copies
   // all change at once.
   const repeatTodo = useCallback(
-    async (todoId: string, date: string, weekdays: number[], startTime?: string) => {
+    async (
+      todoId: string,
+      date: string,
+      weekdays: number[],
+      startTime?: string,
+      durationMinutes?: number
+    ) => {
       const res = await fetch(`/api/todos/${todoId}/repeat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from: date, startTime, weekdays }),
+        body: JSON.stringify({ from: date, startTime, durationMinutes, weekdays }),
       });
       if (!res.ok) {
         alert("반복 일정을 추가하지 못했어요. 다시 시도해 주세요.");
         return;
+      }
+      await reload();
+    },
+    [reload]
+  );
+
+  // "이후 반복 일정 모두": a running rule's time/length/days, from `from` on.
+  const updateRepeat = useCallback(
+    async (
+      templateId: string,
+      from: string,
+      changes: { startTime?: string; durationMinutes?: number; weekdays?: number[] }
+    ) => {
+      const res = await fetch(`/api/todos/${templateId}/repeat`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, ...changes }),
+      });
+      if (!res.ok) {
+        alert("반복 일정을 바꾸지 못했어요. 다시 시도해 주세요.");
       }
       await reload();
     },
@@ -172,6 +201,7 @@ export function useTodos() {
     assignToDay,
     copyTodo,
     repeatTodo,
+    updateRepeat,
     stopRepeat,
     createOnDate,
   };

@@ -34,6 +34,7 @@ export default function DashboardPage() {
     assignToDay,
     copyTodo,
     repeatTodo,
+    updateRepeat,
     stopRepeat,
     createOnDate,
   } = useTodos();
@@ -68,6 +69,7 @@ export default function DashboardPage() {
           onUnassign={unassign}
           onCopyTodo={copyTodo}
           onRepeatTodo={repeatTodo}
+          onUpdateRepeat={updateRepeat}
           onStopRepeat={stopRepeat}
           onCreateOnDate={createOnDate}
         />
@@ -138,6 +140,7 @@ export default function DashboardPage() {
             onScheduleTodo={assignToDay}
             onCopyTodo={copyTodo}
             onRepeatTodo={repeatTodo}
+            onUpdateRepeat={updateRepeat}
             onStopRepeat={stopRepeat}
             onCreateOnDate={createOnDate}
           />

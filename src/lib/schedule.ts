@@ -18,6 +18,13 @@ export function isDateKey(value: unknown): value is string {
   return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 }
 
+/** A block length the calendar accepts: 15 minutes to a whole day. */
+export function isDurationMinutes(value: unknown): value is number {
+  return (
+    typeof value === "number" && Number.isFinite(value) && value >= 15 && value <= 24 * 60
+  );
+}
+
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;

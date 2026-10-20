@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { dragElementTo, HOUR_PX, loginAsTestUser } from "./helpers";
+import { dragElementBy, dragElementTo, HOUR_PX, loginAsTestUser } from "./helpers";
 
 function dayKey(offsetDays = 0): string {
   const d = new Date();
@@ -16,6 +16,8 @@ type ApiTodo = {
   isRecurring?: boolean;
   scheduledDate?: string | null;
   startTime?: string | null;
+  durationMinutes?: number;
+  status?: string;
   repeat?: { startTime: string; weekdays: number[] } | null;
 };
 
@@ -100,6 +102,9 @@ test("반복 일정을 끌어다 놓을 때 '앞으로도 같은 시간에'를 �
 
   const dialog = page.locator("[data-repeat-dialog]");
   await expect(dialog).toBeVisible();
+  // Exact time and length in 30-minute steps, whatever spot it landed on.
+  await dialog.locator("[data-time-select]").selectOption("07:30");
+  await dialog.locator("[data-duration-select]").selectOption("90");
   await dialog.getByRole("button", { name: "앞으로도 같은 시간에 반복" }).click();
   await dialog.getByText("주중 (월–금)").click();
   const repeatResponse = page.waitForResponse(
@@ -115,14 +120,54 @@ test("반복 일정을 끌어다 놓을 때 '앞으로도 같은 시간에'를 �
   const copies = all.filter((t) => !t.isRecurring);
   // Today (where it was dropped) plus every 주중 day ahead, all at one time.
   expect(copies.some((t) => t.scheduledDate === dayKey())).toBe(true);
-  expect(new Set(copies.map((t) => t.startTime)).size).toBe(1);
+  expect(new Set(copies.map((t) => `${t.startTime} ${t.durationMinutes}`))).toEqual(
+    new Set(["07:30 90"])
+  );
   for (const t of copies.filter((c) => c.scheduledDate !== dayKey())) {
     const day = new Date(`${t.scheduledDate}T00:00:00`).getDay();
     expect(day).toBeGreaterThanOrEqual(1);
     expect(day).toBeLessThanOrEqual(5);
   }
   expect(copies.length).toBeGreaterThan(30);
-  await expect(chip).toContainText("주중");
+  await expect(chip).toContainText("주중 07:30");
+
+  // Moving today's copy an hour later asks whether to move the rest too.
+  const todayBlock = todayColumn.locator("[data-event-block]", { hasText: todoName });
+  await dragElementBy(page, todayBlock.locator("[data-drag-handle]"), 0, HOUR_PX);
+  const scope = page.locator("[data-repeat-scope-dialog]");
+  await expect(scope).toContainText("08:30");
+  const patchResponse = page.waitForResponse(
+    (res) => res.url().includes("/repeat") && res.request().method() === "PATCH"
+  );
+  await scope.getByRole("button", { name: "이 날 이후 반복 일정 모두" }).click();
+  expect((await patchResponse).status()).toBe(200);
+  await expect
+    .poll(async () => {
+      const ts = (await todosTitled(page, todoName)).filter((t) => !t.isRecurring);
+      return [...new Set(ts.map((t) => t.startTime))].join(",");
+    })
+    .toBe("08:30");
+
+  // The template's page changes days/time/length for all of them at once.
+  await page.goto(`/todos/${template._id}`);
+  await page.getByRole("button", { name: "반복 수정" }).click();
+  const editor = page.locator("[data-repeat-editor]");
+  await editor.getByText("매일 (주말 포함)").click();
+  await editor.locator("[data-time-select]").selectOption("06:00");
+  await editor.locator("[data-duration-select]").selectOption("30");
+  await editor.getByRole("button", { name: "저장" }).click();
+  await expect(page.locator("[data-repeat-rule]")).toContainText("매일 06:00");
+  const edited = (await todosTitled(page, todoName)).filter(
+    (t) => !t.isRecurring && t.scheduledDate! >= dayKey()
+  );
+  expect(new Set(edited.map((t) => `${t.startTime} ${t.durationMinutes}`))).toEqual(
+    new Set(["06:00 30"])
+  );
+  // 매일 now, so the weekend has one too.
+  expect(edited.some((t) => [0, 6].includes(new Date(`${t.scheduledDate}T00:00:00`).getDay()))).toBe(
+    true
+  );
+  await page.goto("/");
 
   // 반복 중지 from the dialog leaves today's copy and drops the rest.
   await dragElementTo(page, chip, todayColumn, HOUR_PX * 9);

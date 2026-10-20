@@ -12,9 +12,16 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { RepeatDialog } from "@/components/RepeatDialog";
+import { RepeatDialog, RepeatScopeDialog } from "@/components/RepeatDialog";
+import { DurationSelect, TimeSelect } from "@/components/TimeSelect";
 import { resolveCategoryStyle } from "@/lib/category";
-import { addDaysToKey, describeRepeat, WEEKDAY_LABELS, weekdayOfKey } from "@/lib/repeat";
+import {
+  activeRepeatTemplate,
+  addDaysToKey,
+  describeRepeat,
+  WEEKDAY_LABELS,
+  weekdayOfKey,
+} from "@/lib/repeat";
 import {
   DAY_START_MINUTES,
   DEFAULT_DURATION_MINUTES,
@@ -38,7 +45,6 @@ const MIN_BLOCK_HEIGHT_PX = 26;
 // turns the day; anything else is the column scrolling.
 const SWIPE_MIN_PX = 60;
 const CHIP_ID_PREFIX = "chip:";
-const DURATION_OPTIONS = [30, 60, 90, 120, 180, 240];
 
 const STATUS_OPTIONS: { value: TodoStatus; label: string }[] = [
   { value: "TODO", label: "진행 전" },
@@ -51,12 +57,6 @@ type Placed = Todo & { scheduledDate: string; startTime: string };
 function dayLabel(key: string): string {
   const [, m, d] = key.split("-").map(Number);
   return `${m}월 ${d}일 (${WEEKDAY_LABELS[weekdayOfKey(key)]})`;
-}
-
-function durationLabel(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return [h ? `${h}시간` : "", m ? `${m}분` : ""].filter(Boolean).join(" ");
 }
 
 /** The 30-minute slot at `offsetPx` from the column's top, kept on the grid. */
@@ -239,6 +239,7 @@ export function MobileDay({
   onUnassign,
   onCopyTodo,
   onRepeatTodo,
+  onUpdateRepeat,
   onStopRepeat,
   onCreateOnDate,
 }: {
@@ -248,8 +249,19 @@ export function MobileDay({
   onSetStatus: (todoId: string, status: TodoStatus) => void;
   onResizeTodo: (todoId: string, durationMinutes: number) => void;
   onUnassign: (todoId: string) => void;
-  onCopyTodo: (todoId: string, date: string, startTime?: string) => void;
-  onRepeatTodo: (todoId: string, date: string, weekdays: number[], startTime?: string) => void;
+  onCopyTodo: (todoId: string, date: string, startTime?: string, durationMinutes?: number) => void;
+  onRepeatTodo: (
+    todoId: string,
+    date: string,
+    weekdays: number[],
+    startTime?: string,
+    durationMinutes?: number
+  ) => void;
+  onUpdateRepeat: (
+    templateId: string,
+    from: string,
+    changes: { startTime?: string; durationMinutes?: number }
+  ) => void;
   onStopRepeat: (todoId: string) => void;
   onCreateOnDate: (title: string, date: string) => void;
 }) {
@@ -266,6 +278,13 @@ export function MobileDay({
     todo: Placed;
     time: string;
     duration: number;
+    allAfter: boolean;
+  } | null>(null);
+  // A repeat copy dragged to a new time, waiting on "이 날만 / 이후 모두".
+  const [pendingScope, setPendingScope] = useState<{
+    todo: Placed;
+    template: Todo;
+    startTime: string;
   } | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [pendingRepeat, setPendingRepeat] = useState<{
@@ -337,17 +356,35 @@ export function MobileDay({
     const duration = todo.durationMinutes ?? DEFAULT_DURATION_MINUTES;
     // A block's top edge is its start time; round to the nearer slot.
     const time = slotAt(rect.top - columnTop + (SLOT_STEP_MINUTES / 2) * PX_PER_MINUTE, duration);
+    if (time === todo.startTime) return;
+    const template = activeRepeatTemplate(todo, todos);
+    if (template) setPendingScope({ todo, template, startTime: time });
+    else onMoveTodo(todo._id, date, time);
+  }
+
+  function applyToOne(todo: Placed, time: string, duration: number) {
     if (time !== todo.startTime) onMoveTodo(todo._id, date, time);
+    if (duration !== (todo.durationMinutes ?? DEFAULT_DURATION_MINUTES)) {
+      onResizeTodo(todo._id, duration);
+    }
   }
 
   function saveEdit() {
     if (!editing) return;
-    const { todo, time, duration } = editing;
-    if (time && time !== todo.startTime) onMoveTodo(todo._id, date, time);
-    if (duration !== (todo.durationMinutes ?? DEFAULT_DURATION_MINUTES)) {
-      onResizeTodo(todo._id, duration);
+    const { todo, time, duration, allAfter } = editing;
+    applyToOne(todo, time, duration);
+    const template = activeRepeatTemplate(todo, todos);
+    if (allAfter && template) {
+      onUpdateRepeat(template._id, date, { startTime: time, durationMinutes: duration });
     }
     setEditing(null);
+  }
+
+  function pick(todo: Todo) {
+    const time = freeSlot(todo.durationMinutes ?? DEFAULT_DURATION_MINUTES);
+    // The repeat question already asks for the time — no sheet first.
+    if (todo.isRecurring) setPendingRepeat({ todo, startTime: time });
+    else setPicking({ todo, time });
   }
 
   const navButton =
@@ -419,12 +456,7 @@ export function MobileDay({
               key={todo._id}
               todo={todo}
               categories={categories}
-              onPick={(t) =>
-                setPicking({
-                  todo: t,
-                  time: freeSlot(t.durationMinutes ?? DEFAULT_DURATION_MINUTES),
-                })
-              }
+              onPick={pick}
             />
           ))}
         </div>
@@ -477,6 +509,7 @@ export function MobileDay({
                       todo: t,
                       time: t.startTime,
                       duration: t.durationMinutes ?? DEFAULT_DURATION_MINUTES,
+                      allAfter: false,
                     })
                   }
                 />
@@ -490,12 +523,9 @@ export function MobileDay({
         <Sheet title={`${picking.todo.isRecurring ? "🔁 " : ""}${picking.todo.title}`} onClose={() => setPicking(null)}>
           <label className="flex flex-col gap-1 text-sm text-muted">
             {dayLabel(date)} 몇 시에 넣을까요?
-            <input
-              type="time"
-              step={SLOT_STEP_MINUTES * 60}
+            <TimeSelect
               value={picking.time}
-              onChange={(e) => setPicking({ ...picking, time: e.target.value })}
-              className={field}
+              onChange={(time) => setPicking({ ...picking, time })}
             />
           </label>
           <div className="flex gap-2">
@@ -542,31 +572,30 @@ export function MobileDay({
           <div className="flex gap-2">
             <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
               시작
-              <input
-                type="time"
-                step={SLOT_STEP_MINUTES * 60}
+              <TimeSelect
                 value={editing.time}
-                onChange={(e) => setEditing({ ...editing, time: e.target.value })}
-                className={field}
+                onChange={(time) => setEditing({ ...editing, time })}
               />
             </label>
             <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
               길이
-              <select
+              <DurationSelect
                 value={editing.duration}
-                onChange={(e) => setEditing({ ...editing, duration: Number(e.target.value) })}
-                className={field}
-              >
-                {[...new Set([...DURATION_OPTIONS, editing.duration])]
-                  .sort((a, b) => a - b)
-                  .map((m) => (
-                    <option key={m} value={m}>
-                      {durationLabel(m)}
-                    </option>
-                  ))}
-              </select>
+                onChange={(duration) => setEditing({ ...editing, duration })}
+              />
             </label>
           </div>
+          {activeRepeatTemplate(editing.todo, todos) && (
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={editing.allAfter}
+                onChange={(e) => setEditing({ ...editing, allAfter: e.target.checked })}
+                className="h-4 w-4 accent-primary"
+              />
+              🔁 이 날 이후 반복 일정에도 모두 적용
+            </label>
+          )}
           <div className="flex gap-2">
             <button type="button" onClick={() => setEditing(null)} className={secondaryButton}>
               닫기
@@ -629,12 +658,12 @@ export function MobileDay({
           todo={pendingRepeat.todo}
           date={date}
           startTime={pendingRepeat.startTime}
-          onOnce={() => {
-            onCopyTodo(pendingRepeat.todo._id, date, pendingRepeat.startTime);
+          onOnce={(startTime, durationMinutes) => {
+            onCopyTodo(pendingRepeat.todo._id, date, startTime, durationMinutes);
             setPendingRepeat(null);
           }}
-          onRepeat={(weekdays) => {
-            onRepeatTodo(pendingRepeat.todo._id, date, weekdays, pendingRepeat.startTime);
+          onRepeat={(weekdays, startTime, durationMinutes) => {
+            onRepeatTodo(pendingRepeat.todo._id, date, weekdays, startTime, durationMinutes);
             setPendingRepeat(null);
           }}
           onStopRepeat={() => {
@@ -642,6 +671,27 @@ export function MobileDay({
             setPendingRepeat(null);
           }}
           onClose={() => setPendingRepeat(null)}
+        />
+      )}
+
+      {pendingScope && (
+        <RepeatScopeDialog
+          todo={pendingScope.todo}
+          template={pendingScope.template}
+          startTime={pendingScope.startTime}
+          durationMinutes={pendingScope.todo.durationMinutes ?? DEFAULT_DURATION_MINUTES}
+          onOnlyThis={() => {
+            onMoveTodo(pendingScope.todo._id, date, pendingScope.startTime);
+            setPendingScope(null);
+          }}
+          onAllAfter={() => {
+            onMoveTodo(pendingScope.todo._id, date, pendingScope.startTime);
+            onUpdateRepeat(pendingScope.template._id, date, {
+              startTime: pendingScope.startTime,
+            });
+            setPendingScope(null);
+          }}
+          onClose={() => setPendingScope(null)}
         />
       )}
     </DndContext>
