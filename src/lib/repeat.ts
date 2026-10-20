@@ -22,6 +22,21 @@ export const WEEKDAY_LABELS: Record<number, string> = {
   6: "토",
 };
 
+interface RepeatLinked {
+  _id: string;
+  repeatSourceId?: string | null;
+  repeat?: RepeatRule | null;
+}
+
+/**
+ * The 🔁 template whose running rule placed `todo`, if any — editing such
+ * a copy's time can offer "이후 반복 일정 모두".
+ */
+export function activeRepeatTemplate<T extends RepeatLinked>(todo: RepeatLinked, todos: T[]): T | null {
+  if (!todo.repeatSourceId) return null;
+  return todos.find((t) => t._id === todo.repeatSourceId && t.repeat) ?? null;
+}
+
 export interface RepeatRule {
   startTime: string;
   weekdays: number[];

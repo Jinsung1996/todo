@@ -57,7 +57,7 @@ test("휴대폰에서는 하루짜리 세로 캘린더가 나오고, 눌러서 �
   // Tap a tray item → type a time → it lands at that time today.
   await page.locator("[data-mobile-chip]", { hasText: study }).click();
   const sheet = page.locator("[data-mobile-sheet]");
-  await sheet.locator('input[type="time"]').fill("10:00");
+  await sheet.locator("[data-time-select]").selectOption("10:00");
   await sheet.getByRole("button", { name: "추가" }).click();
   const block = page.locator("[data-mobile-block]", { hasText: study });
   await expect(block).toContainText("10:00–11:00");
@@ -66,8 +66,8 @@ test("휴대폰에서는 하루짜리 세로 캘린더가 나오고, 눌러서 �
   // Tap the block → change status, time and length.
   await block.click();
   await sheet.getByRole("button", { name: "진행 중" }).click();
-  await sheet.locator('input[type="time"]').fill("11:30");
-  await sheet.getByRole("combobox").selectOption("90");
+  await sheet.locator("[data-time-select]").selectOption("11:30");
+  await sheet.locator("[data-duration-select]").selectOption("90");
   await sheet.getByRole("button", { name: "시간 저장" }).click();
   await expect(block).toContainText("11:30–13:00");
   await expect
@@ -77,11 +77,11 @@ test("휴대폰에서는 하루짜리 세로 캘린더가 나오고, 눌러서 �
     })
     .toBe("DOING 11:30 90");
 
-  // A 🔁 item still asks about repeating; "이 날만" places one copy.
+  // A 🔁 item goes straight to the repeat question, time included.
   await page.locator("[data-mobile-chip]", { hasText: lunch }).click();
-  await sheet.locator('input[type="time"]').fill("12:00");
-  await sheet.getByRole("button", { name: "추가" }).click();
-  await page.locator("[data-repeat-dialog]").getByRole("button", { name: "이 날만 추가" }).click();
+  const repeatDialog = page.locator("[data-repeat-dialog]");
+  await repeatDialog.locator("[data-time-select]").selectOption("12:00");
+  await repeatDialog.getByRole("button", { name: "이 날만 추가" }).click();
   await expect(page.locator("[data-mobile-block]", { hasText: lunch })).toContainText("12:00");
 
   // Swipe left → tomorrow (empty), swipe right → back to today.

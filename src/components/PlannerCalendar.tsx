@@ -16,14 +16,15 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { type DayDropData, MONTH_ITEM_ID_PREFIX, MonthGrid } from "@/components/MonthGrid";
-import { RepeatDialog } from "@/components/RepeatDialog";
+import { RepeatDialog, RepeatScopeDialog } from "@/components/RepeatDialog";
 import { resolveCategoryStyle } from "@/lib/category";
-import { describeRepeat } from "@/lib/repeat";
+import { activeRepeatTemplate, describeRepeat } from "@/lib/repeat";
 import {
   DAY_START_MINUTES,
   GRID_END_MINUTES,
   GRID_START_MINUTES,
   minutesToTime,
+  nextAvailableSlot,
   snapMinutes,
   timeToMinutes,
 } from "@/lib/schedule";
@@ -344,6 +345,7 @@ export function PlannerCalendar({
   onScheduleTodo,
   onCopyTodo,
   onRepeatTodo,
+  onUpdateRepeat,
   onStopRepeat,
   onCreateOnDate,
 }: {
@@ -360,9 +362,21 @@ export function PlannerCalendar({
   /** Place a not-yet-placed todo on `date`, server picks the time. */
   onScheduleTodo: (todoId: string, date: string) => void;
   /** Place another occurrence of `todoId` on `date`. */
-  onCopyTodo: (todoId: string, date: string, startTime?: string) => void;
+  onCopyTodo: (todoId: string, date: string, startTime?: string, durationMinutes?: number) => void;
   /** Place a 🔁 template on `date` and on `weekdays` from then on. */
-  onRepeatTodo: (todoId: string, date: string, weekdays: number[], startTime?: string) => void;
+  onRepeatTodo: (
+    todoId: string,
+    date: string,
+    weekdays: number[],
+    startTime?: string,
+    durationMinutes?: number
+  ) => void;
+  /** Change a running repeat's time/length from `from` on. */
+  onUpdateRepeat: (
+    templateId: string,
+    from: string,
+    changes: { startTime?: string; durationMinutes?: number }
+  ) => void;
   onStopRepeat: (todoId: string) => void;
   onCreateOnDate: (title: string, date: string) => void;
 }) {
@@ -376,7 +390,14 @@ export function PlannerCalendar({
   const [pendingRepeat, setPendingRepeat] = useState<{
     todo: Todo;
     date: string;
-    startTime?: string;
+    startTime: string;
+  } | null>(null);
+  // A repeat copy given a new time/length, waiting on "이 날만 / 이후 모두".
+  const [pendingScope, setPendingScope] = useState<{
+    todo: ScheduledTodo;
+    template: Todo;
+    startTime: string;
+    durationMinutes: number;
   } | null>(null);
   // Where the pointer is during a drag, so a chip dropped on the week grid
   // lands at the time slot under the cursor (e.g. 오전 공부 vs 오후 공부)
@@ -461,7 +482,18 @@ export function PlannerCalendar({
           ? slotUnderPointer(drop.date, todo.durationMinutes ?? 60)
           : undefined;
       if (todo.isRecurring) {
-        setPendingRepeat({ todo, date: drop.date, startTime });
+        // A month-view drop has no time under the pointer; suggest the
+        // day's first open slot, as an unspecified drop would get.
+        const suggested =
+          startTime ??
+          nextAvailableSlot(
+            placed
+              .filter(isScheduled)
+              .filter((t) => t.scheduledDate === drop.date)
+              .map((t) => ({ startTime: t.startTime, durationMinutes: t.durationMinutes ?? 60 })),
+            todo.durationMinutes ?? 60
+          );
+        setPendingRepeat({ todo, date: drop.date, startTime: suggested });
       } else if (dropPlacesCopy(todo)) {
         onCopyTodo(todo._id, drop.date, startTime);
       } else if (startTime) {
@@ -491,7 +523,18 @@ export function PlannerCalendar({
       const maxDuration = GRID_END_MINUTES - startMinutes;
       const snapped = snapMinutes(duration + delta.y / PX_PER_MINUTE);
       const clamped = Math.min(Math.max(snapped, MIN_DURATION_MINUTES), maxDuration);
-      if (clamped !== duration) onResizeTodo(todoId, clamped);
+      if (clamped === duration) return;
+      const template = activeRepeatTemplate(target, todos);
+      if (template) {
+        setPendingScope({
+          todo: target,
+          template,
+          startTime: target.startTime,
+          durationMinutes: clamped,
+        });
+      } else {
+        onResizeTodo(todoId, clamped);
+      }
       return;
     }
 
@@ -508,9 +551,33 @@ export function PlannerCalendar({
     );
     const newStartTime = minutesToTime(clamped);
 
-    if (newDate !== scheduledTodo.scheduledDate || newStartTime !== scheduledTodo.startTime) {
+    if (newDate === scheduledTodo.scheduledDate && newStartTime === scheduledTodo.startTime) {
+      return;
+    }
+    // A new time on the same day may be meant for the whole repeat; moving
+    // to another day is always just this one.
+    const template =
+      newDate === scheduledTodo.scheduledDate ? activeRepeatTemplate(scheduledTodo, todos) : null;
+    if (template) {
+      setPendingScope({
+        todo: scheduledTodo,
+        template,
+        startTime: newStartTime,
+        durationMinutes: duration,
+      });
+    } else {
       onMoveTodo(scheduledTodo._id, newDate, newStartTime);
     }
+  }
+
+  function applyToOne(change: {
+    todo: ScheduledTodo;
+    startTime: string;
+    durationMinutes: number;
+  }) {
+    const { todo, startTime, durationMinutes } = change;
+    if (startTime !== todo.startTime) onMoveTodo(todo._id, todo.scheduledDate, startTime);
+    if (durationMinutes !== (todo.durationMinutes ?? 60)) onResizeTodo(todo._id, durationMinutes);
   }
 
   function goToday() {
@@ -681,16 +748,17 @@ export function PlannerCalendar({
           todo={pendingRepeat.todo}
           date={pendingRepeat.date}
           startTime={pendingRepeat.startTime}
-          onOnce={() => {
-            onCopyTodo(pendingRepeat.todo._id, pendingRepeat.date, pendingRepeat.startTime);
+          onOnce={(startTime, durationMinutes) => {
+            onCopyTodo(pendingRepeat.todo._id, pendingRepeat.date, startTime, durationMinutes);
             setPendingRepeat(null);
           }}
-          onRepeat={(weekdays) => {
+          onRepeat={(weekdays, startTime, durationMinutes) => {
             onRepeatTodo(
               pendingRepeat.todo._id,
               pendingRepeat.date,
               weekdays,
-              pendingRepeat.startTime
+              startTime,
+              durationMinutes
             );
             setPendingRepeat(null);
           }}
@@ -699,6 +767,27 @@ export function PlannerCalendar({
             setPendingRepeat(null);
           }}
           onClose={() => setPendingRepeat(null)}
+        />
+      )}
+      {pendingScope && (
+        <RepeatScopeDialog
+          todo={pendingScope.todo}
+          template={pendingScope.template}
+          startTime={pendingScope.startTime}
+          durationMinutes={pendingScope.durationMinutes}
+          onOnlyThis={() => {
+            applyToOne(pendingScope);
+            setPendingScope(null);
+          }}
+          onAllAfter={() => {
+            const { todo, template, startTime, durationMinutes } = pendingScope;
+            // This one too, even if it's already 진행 중 (the rule only
+            // rewrites untouched copies).
+            applyToOne(pendingScope);
+            onUpdateRepeat(template._id, todo.scheduledDate, { startTime, durationMinutes });
+            setPendingScope(null);
+          }}
+          onClose={() => setPendingScope(null)}
         />
       )}
     </DndContext>
