@@ -8,6 +8,8 @@ import { getCurrentUser } from "@/lib/currentUser";
 import { normalizeCategoryInput } from "@/lib/category";
 import { DEFAULT_DURATION_MINUTES, TIME_RE } from "@/lib/schedule";
 import { openSlotOn } from "@/lib/autoSlot";
+import { removeUpcomingCopies } from "@/lib/repeatSync";
+import { dateKey } from "@/lib/week";
 
 type Params = { params: Promise<{ todoId: string }> };
 
@@ -115,6 +117,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (isRecurring) {
       update.scheduledDate = null;
       update.startTime = null;
+    } else {
+      // No longer a template, so no longer repeating either.
+      update.repeat = null;
     }
   }
   // Set by the calendar/daily checkbox when checking off a recurring todo
@@ -185,6 +190,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!todo) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  if (isRecurring === false) await removeUpcomingCopies(todo._id, user._id, dateKey());
   return NextResponse.json(toJSON(todo));
 }
 
@@ -202,5 +208,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!todo) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  if (todo.repeat) await removeUpcomingCopies(todo._id, user._id, dateKey());
   return NextResponse.json({ ok: true });
 }

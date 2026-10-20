@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/currentUser";
 import { normalizeCategoryInput } from "@/lib/category";
 import { DEFAULT_DURATION_MINUTES, isDateKey } from "@/lib/schedule";
 import { openSlotOn } from "@/lib/autoSlot";
+import { extendRepeats } from "@/lib/repeatSync";
 
 export async function GET(request: NextRequest) {
   const status = request.nextUrl.searchParams.get("status");
@@ -16,6 +17,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await dbConnect();
+  // Keeps 🔁 repeat copies a few weeks ahead as days go by.
+  await extendRepeats(user._id);
 
   if (scheduledDate) {
     const todos = await Todo.find({ scheduledDate, userId: user._id }).sort({

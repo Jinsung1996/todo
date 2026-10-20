@@ -16,7 +16,9 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { type DayDropData, MONTH_ITEM_ID_PREFIX, MonthGrid } from "@/components/MonthGrid";
+import { RepeatDialog } from "@/components/RepeatDialog";
 import { resolveCategoryStyle } from "@/lib/category";
+import { describeRepeat } from "@/lib/repeat";
 import {
   DAY_START_MINUTES,
   GRID_END_MINUTES,
@@ -268,7 +270,7 @@ function TrayChip({ todo, categories }: { todo: Todo; categories: Category[] }) 
       className={`flex shrink-0 cursor-grab items-center gap-1.5 rounded-full border bg-canvas px-3 py-1 text-xs text-ink shadow-elevated ${
         todo.status === "DOING" ? "border-primary/40" : "border-hairline"
       } ${isDragging ? "z-20 opacity-70" : ""}`}
-      title={todo.title}
+      title={todo.repeat ? `${todo.title} (${describeRepeat(todo.repeat)} 반복 중)` : todo.title}
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${cat.dot}`} aria-hidden />
       <span className="max-w-[160px] truncate">
@@ -276,6 +278,9 @@ function TrayChip({ todo, categories }: { todo: Todo; categories: Category[] }) 
         {todo.title}
         {copyHint}
       </span>
+      {todo.repeat && (
+        <span className="shrink-0 text-[10px] text-muted">{describeRepeat(todo.repeat)}</span>
+      )}
     </div>
   );
 }
@@ -338,6 +343,8 @@ export function PlannerCalendar({
   onUnassign,
   onScheduleTodo,
   onCopyTodo,
+  onRepeatTodo,
+  onStopRepeat,
   onCreateOnDate,
 }: {
   /** All of the user's todos — placed ones render on the calendar; see
@@ -354,6 +361,9 @@ export function PlannerCalendar({
   onScheduleTodo: (todoId: string, date: string) => void;
   /** Place another occurrence of `todoId` on `date`. */
   onCopyTodo: (todoId: string, date: string, startTime?: string) => void;
+  /** Place a 🔁 template on `date` and on `weekdays` from then on. */
+  onRepeatTodo: (todoId: string, date: string, weekdays: number[], startTime?: string) => void;
+  onStopRepeat: (todoId: string) => void;
   onCreateOnDate: (title: string, date: string) => void;
 }) {
   const sensors = useSensors(
@@ -362,6 +372,12 @@ export function PlannerCalendar({
   const [view, setView] = useState<View>("week");
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [month, setMonth] = useState(() => firstOfMonth(new Date()));
+  // A 🔁 template just dropped, waiting on "이 날만 / 앞으로도 반복".
+  const [pendingRepeat, setPendingRepeat] = useState<{
+    todo: Todo;
+    date: string;
+    startTime?: string;
+  } | null>(null);
   // Where the pointer is during a drag, so a chip dropped on the week grid
   // lands at the time slot under the cursor (e.g. 오전 공부 vs 오후 공부)
   // instead of just the next free slot.
@@ -444,7 +460,9 @@ export function PlannerCalendar({
         drop.kind === "week-day"
           ? slotUnderPointer(drop.date, todo.durationMinutes ?? 60)
           : undefined;
-      if (dropPlacesCopy(todo)) {
+      if (todo.isRecurring) {
+        setPendingRepeat({ todo, date: drop.date, startTime });
+      } else if (dropPlacesCopy(todo)) {
         onCopyTodo(todo._id, drop.date, startTime);
       } else if (startTime) {
         onMoveTodo(todo._id, drop.date, startTime);
@@ -656,6 +674,31 @@ export function PlannerCalendar({
           categories={categories}
           onOpenDay={openWeekOf}
           onCreateOnDate={onCreateOnDate}
+        />
+      )}
+      {pendingRepeat && (
+        <RepeatDialog
+          todo={pendingRepeat.todo}
+          date={pendingRepeat.date}
+          startTime={pendingRepeat.startTime}
+          onOnce={() => {
+            onCopyTodo(pendingRepeat.todo._id, pendingRepeat.date, pendingRepeat.startTime);
+            setPendingRepeat(null);
+          }}
+          onRepeat={(weekdays) => {
+            onRepeatTodo(
+              pendingRepeat.todo._id,
+              pendingRepeat.date,
+              weekdays,
+              pendingRepeat.startTime
+            );
+            setPendingRepeat(null);
+          }}
+          onStopRepeat={() => {
+            onStopRepeat(pendingRepeat.todo._id);
+            setPendingRepeat(null);
+          }}
+          onClose={() => setPendingRepeat(null)}
         />
       )}
     </DndContext>

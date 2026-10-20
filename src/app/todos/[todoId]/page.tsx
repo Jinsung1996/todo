@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import { describeRepeat } from "@/lib/repeat";
 import { useCategories } from "@/lib/useCategories";
+import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus, WeeklyPlan, YearlyGoal } from "@/types";
 
 const STATUS_LABEL: Record<TodoStatus, string> = {
@@ -83,6 +85,12 @@ export default function TodoDetailPage() {
     load();
   }
 
+  // Today's copy stays; the untouched ones after it go.
+  async function stopRepeat() {
+    await fetch(`/api/todos/${todoId}/repeat?after=${dateKey()}`, { method: "DELETE" });
+    load();
+  }
+
   async function deleteTodo() {
     if (!confirm("이 일간 목표를 삭제할까요?")) return;
     await fetch(`/api/todos/${todoId}`, { method: "DELETE" });
@@ -116,10 +124,25 @@ export default function TodoDetailPage() {
         // A 🔁 template is never placed or checked off itself — each day it's
         // dragged onto the calendar becomes its own copy with its own status
         // (see src/app/api/todos/[todoId]/copy/route.ts).
-        <p className="text-sm text-muted">
-          반복 일정이에요. 대시보드 캘린더 위쪽 목록에서 필요한 날·시간에 끌어다 놓으면 그날
-          일정이 하나씩 추가되고, 완료 체크는 추가된 일정마다 따로 해요.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-muted">
+            반복 일정이에요. 대시보드 캘린더 위쪽 목록에서 필요한 날·시간에 끌어다 놓으면 그날
+            일정이 하나씩 추가되고, 완료 체크는 추가된 일정마다 따로 해요. 끌어다 놓을 때
+            &ldquo;앞으로도 같은 시간에 반복&rdquo;을 고르면 매번 끌지 않아도 돼요.
+          </p>
+          {todo.repeat && (
+            <div className="flex items-center gap-3 text-sm text-ink">
+              <span data-repeat-rule>{describeRepeat(todo.repeat)}에 자동으로 추가 중</span>
+              <button
+                type="button"
+                onClick={stopRepeat}
+                className="text-xs text-error hover:text-error-hover"
+              >
+                반복 중지
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="flex gap-2">
           {(["TODO", "DOING", "DONE"] as TodoStatus[]).map((status) => (

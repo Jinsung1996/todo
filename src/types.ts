@@ -1,3 +1,5 @@
+import type { RepeatRule } from "@/lib/repeat";
+
 export type TodoStatus = "TODO" | "DOING" | "DONE";
 
 export interface YearlyGoal {
@@ -31,4 +33,7 @@ export interface Todo {
   // completion is derived from lastCompletedDate instead of status.
   isRecurring?: boolean;
   lastCompletedDate?: string | null;
+  // 🔁 template only: placed automatically on these weekdays at startTime.
+  repeat?: RepeatRule | null;
+  repeatSourceId?: string | null;
 }
