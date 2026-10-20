@@ -34,6 +34,18 @@ const TodoSchema = new Schema(
     // of needing to be re-created after each completion.
     isRecurring: { type: Boolean, default: false },
     lastCompletedDate: { type: String, required: false }, // local date key of the last day it was checked off
+    // On a 🔁 template: "앞으로도 같은 시간에" — see src/lib/repeat.ts.
+    repeat: {
+      type: new Schema(
+        { startTime: String, weekdays: [Number], through: String },
+        { _id: false }
+      ),
+      required: false,
+      default: undefined,
+    },
+    // On a copy created by a template's repeat rule, so stopping the rule
+    // can remove the copies still ahead.
+    repeatSourceId: { type: Schema.Types.ObjectId, ref: "Todo", required: false },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: false }, // unset = legacy, pre-auth
   },
   { timestamps: true }

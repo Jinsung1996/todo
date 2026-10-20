@@ -22,4 +22,17 @@ describe("weeklyProgress", () => {
       weeklyProgress([{ status: "DONE" }, { status: "DONE" }])
     ).toBe(100);
   });
+
+  it("leaves out repeat copies still ahead of today", () => {
+    expect(
+      weeklyProgress(
+        [
+          { status: "DONE", repeatSourceId: "t", scheduledDate: "2026-10-20" },
+          { status: "TODO", repeatSourceId: "t", scheduledDate: "2026-10-21" },
+          { status: "TODO", scheduledDate: "2026-10-21" },
+        ],
+        "2026-10-20"
+      )
+    ).toBe(50);
+  });
 });

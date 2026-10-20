@@ -31,6 +31,8 @@ export default function DashboardPage() {
     unassign,
     assignToDay,
     copyTodo,
+    repeatTodo,
+    stopRepeat,
     createOnDate,
   } = useTodos();
   const { categories } = useCategories();
@@ -112,6 +114,8 @@ export default function DashboardPage() {
             onUnassign={unassign}
             onScheduleTodo={assignToDay}
             onCopyTodo={copyTodo}
+            onRepeatTodo={repeatTodo}
+            onStopRepeat={stopRepeat}
             onCreateOnDate={createOnDate}
           />
         </section>

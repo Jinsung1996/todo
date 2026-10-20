@@ -6,7 +6,9 @@ import Link from "next/link";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { resolveCategoryStyle } from "@/lib/category";
 import { effectiveStatus, isDoneToday } from "@/lib/recurring";
+import { isUpcomingRepeat } from "@/lib/repeat";
 import { useCategories } from "@/lib/useCategories";
+import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
 const TABS: { key: string; label: string }[] = [
@@ -32,7 +34,8 @@ function DailyPageContent() {
     return fetch(`/api/todos${query}`)
       .then((res) => res.json())
       .then((data) => {
-        setTodos(data);
+        // Weeks of 🔁 repeat copies ahead belong on the calendar, not here.
+        setTodos(data.filter((t: Todo) => !isUpcomingRepeat(t, dateKey())));
         setLoading(false);
       });
   }

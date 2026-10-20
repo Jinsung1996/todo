@@ -7,6 +7,7 @@ import { isValidObjectId } from "@/lib/objectId";
 import { getCurrentUser } from "@/lib/currentUser";
 import { DEFAULT_DURATION_MINUTES, isDateKey, TIME_RE } from "@/lib/schedule";
 import { openSlotOn } from "@/lib/autoSlot";
+import { occurrenceOf } from "@/lib/repeatSync";
 
 type Params = { params: Promise<{ todoId: string }> };
 
@@ -46,19 +47,15 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const durationMinutes = source.durationMinutes ?? DEFAULT_DURATION_MINUTES;
-  const copy = await Todo.create({
-    title: source.title,
-    description: source.description,
-    category: source.category,
-    weeklyPlanId: source.weeklyPlanId,
-    durationMinutes,
-    scheduledDate,
-    startTime:
+  const copy = await Todo.create(
+    occurrenceOf(
+      source,
+      user._id,
+      scheduledDate,
       typeof startTime === "string"
         ? startTime
-        : await openSlotOn(user._id, scheduledDate, durationMinutes),
-    isRecurring: false,
-    userId: user._id,
-  });
+        : await openSlotOn(user._id, scheduledDate, durationMinutes)
+    )
+  );
   return NextResponse.json(toJSON(copy), { status: 201 });
 }

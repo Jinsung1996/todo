@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
 /**
@@ -109,6 +110,41 @@ export function useTodos() {
     setTodos((prev) => [...prev, created]);
   }, []);
 
+  // A 🔁 template placed on `date` and, from then on, on every one of
+  // `weekdays` at the same time (see src/app/api/todos/[todoId]/repeat).
+  // Reloads rather than merging: the template's rule and dozens of copies
+  // all change at once.
+  const repeatTodo = useCallback(
+    async (todoId: string, date: string, weekdays: number[], startTime?: string) => {
+      const res = await fetch(`/api/todos/${todoId}/repeat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from: date, startTime, weekdays }),
+      });
+      if (!res.ok) {
+        alert("반복 일정을 추가하지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+      await reload();
+    },
+    [reload]
+  );
+
+  // Today's copy stays; the untouched ones after it go.
+  const stopRepeat = useCallback(
+    async (todoId: string) => {
+      const res = await fetch(`/api/todos/${todoId}/repeat?after=${dateKey()}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        alert("반복을 멈추지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+      await reload();
+    },
+    [reload]
+  );
+
   // A brand-new standalone 일간 목표 entered straight onto a day (the month
   // calendar's per-day "+"), e.g. an appointment months ahead.
   const createOnDate = useCallback(async (title: string, date: string) => {
@@ -135,6 +171,8 @@ export function useTodos() {
     unassign,
     assignToDay,
     copyTodo,
+    repeatTodo,
+    stopRepeat,
     createOnDate,
   };
 }
