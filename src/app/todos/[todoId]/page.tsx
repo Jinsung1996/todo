@@ -97,15 +97,15 @@ export default function TodoDetailPage() {
     router.back();
   }
 
-  if (loading) return <main className="p-8 text-body-text">불러오는 중...</main>;
-  if (!todo) return <main className="p-8 text-body-text">일간 목표를 찾을 수 없습니다.</main>;
+  if (loading) return <main className="p-4 sm:p-8 text-body-text">불러오는 중...</main>;
+  if (!todo) return <main className="p-4 sm:p-8 text-body-text">일간 목표를 찾을 수 없습니다.</main>;
 
   const week =
     todo.weeklyPlanId && typeof todo.weeklyPlanId !== "string" ? todo.weeklyPlanId : null;
   const goal = week && typeof week.yearlyGoalId !== "string" ? (week.yearlyGoalId as YearlyGoal) : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4 sm:p-8">
       {week && goal ? (
         <Link href={`/goals/${goal._id}/weeks/${week._id}`} className="text-sm text-muted">
           ← {goal.title} / {week.title}

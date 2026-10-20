@@ -83,7 +83,7 @@ export default function GoalsPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-ink">연간 목표</h1>
         {goals.length > 0 && (

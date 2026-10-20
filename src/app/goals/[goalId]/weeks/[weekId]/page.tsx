@@ -91,13 +91,13 @@ export default function WeekBoardPage() {
     }
   }
 
-  if (loading) return <main className="p-8 text-body-text">불러오는 중...</main>;
-  if (!week) return <main className="p-8 text-body-text">주간 목표를 찾을 수 없습니다.</main>;
+  if (loading) return <main className="p-4 sm:p-8 text-body-text">불러오는 중...</main>;
+  if (!week) return <main className="p-4 sm:p-8 text-body-text">주간 목표를 찾을 수 없습니다.</main>;
 
   const progress = weeklyProgress(todos);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <Link href={`/goals/${goalId}`} className="text-sm text-muted">
           ← 목표로 돌아가기

@@ -31,7 +31,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-full flex-1 bg-canvas">
-      <aside className="flex w-48 flex-col gap-6 border-r border-hairline bg-canvas p-6">
+      <aside className="hidden w-48 flex-col gap-6 border-r border-hairline bg-canvas p-6 md:flex">
         <span className="text-sm font-semibold text-muted">계획 관리</span>
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => {
@@ -72,12 +72,39 @@ export function AppShell({
           </div>
         )}
       </aside>
-      <div className="flex flex-1 flex-col bg-canvas">
-        <header className="border-b border-hairline px-8 py-5">
-          <h1 className="text-xl font-bold text-ink">목표 관리</h1>
+      <div className="flex min-w-0 flex-1 flex-col bg-canvas">
+        <header className="flex items-center justify-between border-b border-hairline px-4 py-2.5 md:px-8 md:py-5">
+          <h1 className="text-base font-bold text-ink md:text-xl">목표 관리</h1>
+          {user && (
+            <a href="/auth/logout" className="text-xs text-muted md:hidden">
+              로그아웃
+            </a>
+          )}
         </header>
-        <div className="flex flex-1 flex-col">{children}</div>
+        {/* pb leaves room for the phone's bottom tab bar. */}
+        <div className="flex flex-1 flex-col pb-16 md:pb-0">{children}</div>
       </div>
+      {/* Phones: the sidebar's links as a bottom tab bar instead. */}
+      <nav
+        data-mobile-nav
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-canvas pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
+                active ? "font-semibold text-primary" : "text-muted"
+              }`}
+            >
+              <span className="text-lg leading-none">{item.emoji}</span>
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
