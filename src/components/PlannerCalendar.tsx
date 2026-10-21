@@ -16,20 +16,24 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { type DayDropData, MONTH_ITEM_ID_PREFIX, MonthGrid } from "@/components/MonthGrid";
+import { minuteOfDay, NowLabel, NowLine } from "@/components/NowLine";
 import { RepeatDialog, RepeatScopeDialog } from "@/components/RepeatDialog";
 import { resolveCategoryStyle } from "@/lib/category";
 import { activeRepeatTemplate, describeRepeat } from "@/lib/repeat";
 import {
-  DAY_START_MINUTES,
+  DEFAULT_DURATION_MINUTES,
   GRID_END_MINUTES,
   GRID_START_MINUTES,
   minutesToTime,
   nextAvailableSlot,
+  openingScrollMinutes,
   snapMinutes,
+  stackBlocks,
   timeToMinutes,
 } from "@/lib/schedule";
 import type { Category } from "@/lib/useCategories";
 import { dropPlacesCopy, trayTodos } from "@/lib/tray";
+import { useNowMinute } from "@/lib/useNow";
 import { dateKey, startOfWeek } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
@@ -40,6 +44,7 @@ const ROW_HEIGHT_PX = 96; // px per hour
 const HALF_ROW_HEIGHT_PX = ROW_HEIGHT_PX / 2; // 30-minute guide line
 const GRID_HEIGHT_PX = ((GRID_END_MINUTES - GRID_START_MINUTES) / 60) * ROW_HEIGHT_PX;
 const PX_PER_MINUTE = ROW_HEIGHT_PX / 60;
+const STACK_INDENT_PX = 8;
 const MIN_BLOCK_HEIGHT_PX = 28;
 const MONTHS_AHEAD = 12; // month tabs: this month + the next 11
 const MIN_DURATION_MINUTES = 30;
@@ -65,11 +70,13 @@ const STATUS_OPTIONS: { value: TodoStatus; label: string }[] = [
 
 function EventBlock({
   todo,
+  depth,
   categories,
   onSetStatus,
   onUnassign,
 }: {
   todo: ScheduledTodo;
+  depth: number;
   categories: Category[];
   onSetStatus: (id: string, status: TodoStatus) => void;
   onUnassign: (id: string) => void;
@@ -117,12 +124,16 @@ function EventBlock({
       style={{
         top,
         height,
+        // Inside a longer block: nudged right so the one under it peeks out.
+        left: depth ? 2 + depth * STACK_INDENT_PX : undefined,
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
       }}
       className={`absolute inset-x-0.5 flex overflow-hidden rounded-sm border border-hairline-soft text-left text-sm text-ink shadow-elevated ${
         cat.bg
       } ${done ? "opacity-60" : ""} ${doing ? "ring-1 ring-primary/50" : ""} ${
-        isDragging || isResizing ? "z-20" : "z-10"
+        // Hovered rises above the blocks stacked on it (still under the
+        // "지금" line), so a long block's bottom handle can be reached.
+        isDragging || isResizing ? "z-20" : "z-10 hover:z-[12]"
       } ${isDragging ? "opacity-70" : ""}`}
     >
       {/* A dedicated grab strip, not the whole card: the body below packs in
@@ -204,12 +215,15 @@ function EventBlock({
 function DayColumn({
   date,
   todos,
+  nowMinute,
   categories,
   onSetStatus,
   onUnassign,
 }: {
   date: string;
   todos: ScheduledTodo[];
+  /** Set only on today's column. */
+  nowMinute: number | null;
   categories: Category[];
   onSetStatus: (id: string, status: TodoStatus) => void;
   onUnassign: (id: string) => void;
@@ -236,15 +250,19 @@ function DayColumn({
         isOver ? "bg-primary/5" : ""
       }`}
     >
-      {todos.map((todo) => (
+      {stackBlocks(
+        todos.map((t) => ({ ...t, durationMinutes: t.durationMinutes ?? DEFAULT_DURATION_MINUTES }))
+      ).map(({ block: todo, depth }) => (
         <EventBlock
           key={todo._id}
           todo={todo}
+          depth={depth}
           categories={categories}
           onSetStatus={onSetStatus}
           onUnassign={onUnassign}
         />
       ))}
+      {nowMinute !== null && <NowLine minute={nowMinute} pxPerMinute={PX_PER_MINUTE} />}
     </div>
   );
 }
@@ -412,14 +430,17 @@ export function PlannerCalendar({
   const gridScroller = useRef<HTMLDivElement>(null);
   const dayHeader = useRef<HTMLDivElement>(null);
 
-  // The grid spans 00–24시 but opens at 07시, the usual start of the day;
-  // 새벽 is a scroll up away.
+  // The grid spans 00–24시 but opens an hour before now, so the "지금"
+  // line is in view; the rest of the day is a scroll away.
   useLayoutEffect(() => {
     if (view !== "week" || !gridScroller.current) return;
-    gridScroller.current.scrollTop = (DAY_START_MINUTES - GRID_START_MINUTES) * PX_PER_MINUTE;
+    gridScroller.current.scrollTop =
+      (openingScrollMinutes(minuteOfDay(Math.floor(Date.now() / 60_000))) - GRID_START_MINUTES) *
+      PX_PER_MINUTE;
   }, [view]);
 
   const today = dateKey();
+  const nowMinute = useNowMinute();
   const thisMonth = firstOfMonth(new Date());
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekKeys = weekDays.map((d) => dateKey(d));
@@ -711,7 +732,7 @@ export function PlannerCalendar({
           {/* pt-2 leaves room for the "00시" label, which sits half a line
               above its row and would otherwise hide under the day header. */}
           <div className="flex pt-2">
-            <div className="flex w-10 shrink-0 flex-col" style={{ height: GRID_HEIGHT_PX }}>
+            <div className="relative flex w-10 shrink-0 flex-col" style={{ height: GRID_HEIGHT_PX }}>
               {Array.from({ length: (GRID_END_MINUTES - GRID_START_MINUTES) / 60 }, (_, i) => (
                 <div
                   key={i}
@@ -721,12 +742,16 @@ export function PlannerCalendar({
                   {String(GRID_START_MINUTES / 60 + i).padStart(2, "0")}시
                 </div>
               ))}
+              {nowMinute !== null && weekKeys.includes(today) && (
+                <NowLabel minute={minuteOfDay(nowMinute)} pxPerMinute={PX_PER_MINUTE} />
+              )}
             </div>
             {weekKeys.map((key) => (
               <DayColumn
                 key={key}
                 date={key}
                 todos={scheduled.filter((t) => t.scheduledDate === key)}
+                nowMinute={key === today && nowMinute !== null ? minuteOfDay(nowMinute) : null}
                 categories={categories}
                 onSetStatus={onSetStatus}
                 onUnassign={onUnassign}

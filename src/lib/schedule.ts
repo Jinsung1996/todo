@@ -1,7 +1,8 @@
 /** Google-Calendar-style week grid bounds and auto time-slotting for todos. */
 
 // The grid covers the whole day so 새벽 일정 have a place too; it opens
-// scrolled to DAY_START_MINUTES, where auto-placement also starts looking.
+// near the current time (openingScrollMinutes). Auto-placement starts
+// looking at DAY_START_MINUTES.
 export const GRID_START_MINUTES = 0; // 00:00
 export const GRID_END_MINUTES = 24 * 60; // 24:00
 export const DAY_START_MINUTES = 7 * 60; // 07:00
@@ -42,6 +43,14 @@ export function snapMinutes(minutes: number, step: number = SLOT_STEP_MINUTES): 
   return Math.round(minutes / step) * step;
 }
 
+/**
+ * Where the grid opens: an hour before `nowMinuteOfDay`, so the "지금" line
+ * and what comes next are both in view.
+ */
+export function openingScrollMinutes(nowMinuteOfDay: number): number {
+  return Math.max(GRID_START_MINUTES, nowMinuteOfDay - 60);
+}
+
 export interface TimeBlock {
   startTime: string;
   durationMinutes: number;
@@ -78,4 +87,31 @@ export function nextAvailableSlot(
 
   const lastEnd = busy.length > 0 ? Math.max(...busy.map((b) => b.end)) : DAY_START_MINUTES;
   return minutesToTime(lastEnd);
+}
+
+/**
+ * Paint order for one day's overlapping blocks: longest first, so a short
+ * break or lunch drawn later sits on top of the long study block it falls
+ * inside instead of hiding under it. `depth` counts the longer blocks a
+ * block overlaps, used to nudge it right so the one under it stays visible.
+ */
+export function stackBlocks<T extends TimeBlock>(blocks: T[]): { block: T; depth: number }[] {
+  const span = (b: TimeBlock) => {
+    const start = timeToMinutes(b.startTime);
+    return { start, end: start + b.durationMinutes };
+  };
+  const ordered = [...blocks].sort(
+    (a, b) =>
+      b.durationMinutes - a.durationMinutes || a.startTime.localeCompare(b.startTime)
+  );
+  return ordered.map((block, i) => {
+    const { start, end } = span(block);
+    const depth = ordered
+      .slice(0, i)
+      .filter((other) => {
+        const o = span(other);
+        return start < o.end && end > o.start;
+      }).length;
+    return { block, depth };
+  });
 }
