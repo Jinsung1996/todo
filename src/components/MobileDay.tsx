@@ -12,6 +12,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { minuteOfDay, NowLabel, NowLine } from "@/components/NowLine";
 import { RepeatDialog, RepeatScopeDialog } from "@/components/RepeatDialog";
 import { DurationSelect, TimeSelect } from "@/components/TimeSelect";
 import { resolveCategoryStyle } from "@/lib/category";
@@ -23,17 +24,19 @@ import {
   weekdayOfKey,
 } from "@/lib/repeat";
 import {
-  DAY_START_MINUTES,
   DEFAULT_DURATION_MINUTES,
   GRID_END_MINUTES,
   GRID_START_MINUTES,
   minutesToTime,
   nextAvailableSlot,
+  openingScrollMinutes,
   SLOT_STEP_MINUTES,
+  stackBlocks,
   timeToMinutes,
 } from "@/lib/schedule";
 import { dropPlacesCopy, trayTodos } from "@/lib/tray";
 import type { Category } from "@/lib/useCategories";
+import { useNowMinute } from "@/lib/useNow";
 import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
@@ -41,6 +44,7 @@ const ROW_HEIGHT_PX = 72; // px per hour — a bit tighter than the PC grid
 const PX_PER_MINUTE = ROW_HEIGHT_PX / 60;
 const GRID_HEIGHT_PX = ((GRID_END_MINUTES - GRID_START_MINUTES) / 60) * ROW_HEIGHT_PX;
 const MIN_BLOCK_HEIGHT_PX = 26;
+const STACK_INDENT_PX = 12;
 // A sideways swipe this long (and clearly more sideways than vertical)
 // turns the day; anything else is the column scrolling.
 const SWIPE_MIN_PX = 60;
@@ -145,10 +149,12 @@ function Chip({
 
 function Block({
   todo,
+  depth,
   categories,
   onOpen,
 }: {
   todo: Placed;
+  depth: number;
   categories: Category[];
   onOpen: (todo: Placed) => void;
 }) {
@@ -170,6 +176,8 @@ function Block({
       style={{
         top: (start - GRID_START_MINUTES) * PX_PER_MINUTE,
         height: Math.max(MIN_BLOCK_HEIGHT_PX, duration * PX_PER_MINUTE),
+        // Inside a longer block: nudged right so the one under it peeks out.
+        left: depth ? 4 + depth * STACK_INDENT_PX : undefined,
         transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
       }}
       className={`absolute inset-x-1 flex overflow-hidden rounded-sm border border-hairline-soft text-left text-ink shadow-elevated ${
@@ -272,6 +280,7 @@ export function MobileDay({
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
   );
   const today = dateKey();
+  const nowMinute = useNowMinute();
   const [date, setDate] = useState(today);
   const [picking, setPicking] = useState<{ todo: Todo; time: string } | null>(null);
   const [editing, setEditing] = useState<{
@@ -296,10 +305,13 @@ export function MobileDay({
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
 
-  // Opens at 07시 like the PC grid; turning the day keeps the scroll spot.
+  // Opens near the current time like the PC grid; turning the day keeps
+  // the scroll spot.
   useLayoutEffect(() => {
     if (scroller.current) {
-      scroller.current.scrollTop = (DAY_START_MINUTES - GRID_START_MINUTES) * PX_PER_MINUTE;
+      scroller.current.scrollTop =
+        (openingScrollMinutes(minuteOfDay(Math.floor(Date.now() / 60_000))) - GRID_START_MINUTES) *
+        PX_PER_MINUTE;
     }
   }, []);
 
@@ -487,7 +499,7 @@ export function MobileDay({
           className="h-[calc(100dvh-18rem)] min-h-[320px] overflow-y-auto rounded-sm border border-hairline-soft"
         >
           <div className="flex pt-2">
-            <div className="flex w-10 shrink-0 flex-col" style={{ height: GRID_HEIGHT_PX }}>
+            <div className="relative flex w-10 shrink-0 flex-col" style={{ height: GRID_HEIGHT_PX }}>
               {Array.from({ length: (GRID_END_MINUTES - GRID_START_MINUTES) / 60 }, (_, i) => (
                 <div
                   key={i}
@@ -497,12 +509,21 @@ export function MobileDay({
                   {String(GRID_START_MINUTES / 60 + i).padStart(2, "0")}시
                 </div>
               ))}
+              {nowMinute !== null && date === today && (
+                <NowLabel minute={minuteOfDay(nowMinute)} pxPerMinute={PX_PER_MINUTE} />
+              )}
             </div>
             <Column columnRef={column}>
-              {dayTodos.map((todo) => (
+              {stackBlocks(
+                dayTodos.map((t) => ({
+                  ...t,
+                  durationMinutes: t.durationMinutes ?? DEFAULT_DURATION_MINUTES,
+                }))
+              ).map(({ block: todo, depth }) => (
                 <Block
                   key={todo._id}
                   todo={todo}
+                  depth={depth}
                   categories={categories}
                   onOpen={(t) =>
                     setEditing({
@@ -514,6 +535,9 @@ export function MobileDay({
                   }
                 />
               ))}
+              {nowMinute !== null && date === today && (
+                <NowLine minute={minuteOfDay(nowMinute)} pxPerMinute={PX_PER_MINUTE} />
+              )}
             </Column>
           </div>
         </div>

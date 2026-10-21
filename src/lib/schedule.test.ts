@@ -4,6 +4,7 @@ import {
   minutesToTime,
   nextAvailableSlot,
   snapMinutes,
+  stackBlocks,
   timeToMinutes,
 } from "./schedule";
 
@@ -48,5 +49,24 @@ describe("nextAvailableSlot", () => {
     // todo from the day's start onward, so it lands right after that block.
     const existing = [{ startTime: "07:00", durationMinutes: 17 * 60 }];
     expect(nextAvailableSlot(existing, 60)).toBe("00:00");
+  });
+});
+
+describe("stackBlocks", () => {
+  it("paints longer blocks first so a short break inside stays on top", () => {
+    const study = { id: "study", startTime: "10:00", durationMinutes: 480 };
+    const lunch = { id: "lunch", startTime: "12:00", durationMinutes: 60 };
+    const snack = { id: "snack", startTime: "15:00", durationMinutes: 30 };
+    const result = stackBlocks([lunch, snack, study]);
+    expect(result.map((r) => r.block.id)).toEqual(["study", "lunch", "snack"]);
+    expect(result.map((r) => r.depth)).toEqual([0, 1, 1]);
+  });
+
+  it("leaves blocks that don't overlap at depth 0", () => {
+    const result = stackBlocks([
+      { startTime: "09:00", durationMinutes: 60 },
+      { startTime: "10:00", durationMinutes: 30 },
+    ]);
+    expect(result.map((r) => r.depth)).toEqual([0, 0]);
   });
 });

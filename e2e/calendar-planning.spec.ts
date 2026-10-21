@@ -77,17 +77,17 @@ test("같은 일간 목표를 하루에 여러 번(오전/오후) 넣고, 다음
   }
 });
 
-test("주간 캘린더는 0시~24시 전체를 보여 주고 07시에서 시작하며, 새벽에도 일정을 넣을 수 있다", async ({
+test("주간 캘린더는 0시~24시 전체를 보여 주고 지금보다 1시간 앞에서 시작하며, 새벽에도 일정을 넣을 수 있다", async ({
   page,
 }) => {
   const todoName = `새벽 비행기 ${Date.now()}`;
-  await loginAsTestUser(page);
+  await loginAsTestUser(page); // pins the browser clock to 08:00
   await createStandalone(page, todoName);
   await page.goto("/");
 
   const scroller = page.locator("[data-week-scroller]");
   await expect(scroller).toBeVisible();
-  // Opens scrolled to 07시, with 00시 just above.
+  // At 08:00 it opens scrolled to 07시, with 00시 just above.
   await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(HOUR_PX * 7);
   await expect(scroller.getByText("00시")).toBeAttached();
   await expect(scroller.getByText("23시")).toBeAttached();

@@ -64,6 +64,11 @@ export async function dragElementBy(page: Page, source: Locator, dx: number, dy:
 }
 
 export async function loginAsTestUser(page: Page) {
+  // The calendars open an hour before "now"; pin the browser to 08:00 today
+  // so they open at 07시 and drop offsets mean the same time on every run.
+  const eightAm = new Date();
+  eightAm.setHours(8, 0, 0, 0);
+  await page.clock.setFixedTime(eightAm);
   const res = await page.request.post("/api/test/login");
   if (!res.ok()) throw new Error("test login failed");
 }
