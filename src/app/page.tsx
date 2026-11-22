@@ -81,10 +81,14 @@ export default function DashboardPage() {
   const todayCount = todos.filter(isActiveToday).length;
   const completionPercent = dailyProgress(todos);
   const recentGoals = goals.slice(0, 5);
+  const thisYear = new Date().getFullYear();
+  const yearGoals = goals.filter((g) => g.year === thisYear);
+  const yearDone = yearGoals.filter((g) => g.completed).length;
+  const yearPercent = yearGoals.length ? Math.round((yearDone / yearGoals.length) * 100) : 0;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 p-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-4">
         <NotepadCard label="연간 목표" value={goals.length}>
           {recentGoals.map((goal) => (
             <Link
@@ -122,7 +126,15 @@ export default function DashboardPage() {
         </NotepadCard>
 
         <StatCard href="/daily" label="오늘 일간 목표 수" value={todayCount} />
-        <StatCard href="/daily" label="오늘 완료(%)" value={completionPercent} suffix="%" />
+        <div className="flex flex-col gap-2">
+          <StatCard href="/daily" label="오늘 완료(%)" value={completionPercent} suffix="%" />
+          <StatCard
+            href="/goals"
+            label={`${thisYear}년 연간 완료 ${yearDone}/${yearGoals.length}`}
+            value={yearPercent}
+            suffix="%"
+          />
+        </div>
       </div>
 
       <div className="flex flex-1 items-stretch gap-3">

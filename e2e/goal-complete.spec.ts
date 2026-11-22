@@ -21,6 +21,13 @@ test("연간 목표와 주간 목표를 완료로 표시하고 되돌린다", as
   // Survives a reload, so it was saved.
   await page.reload();
   await expect(goalRow.getByRole("button", { name: "완료 취소" })).toBeVisible();
+
+  // The dashboard's 연간 완료 card counts it (other tests' goals may share the DB).
+  await page.goto("/");
+  const year = new Date().getFullYear();
+  await expect(page.getByRole("link", { name: new RegExp(`${year}년 연간 완료 [1-9]\\d*/[1-9]\\d*`) })).toBeVisible();
+  await page.goto("/goals");
+
   await goalRow.getByRole("button", { name: "완료 취소" }).click();
   await expect(goalRow.getByRole("button", { name: "완료", exact: true })).toBeVisible();
 
