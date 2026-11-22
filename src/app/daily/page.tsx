@@ -5,24 +5,32 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { resolveCategoryStyle } from "@/lib/category";
+import { dailyProgress, todosOnDay } from "@/lib/progress";
 import { effectiveStatus, isDoneToday } from "@/lib/recurring";
-import { isUpcomingRepeat } from "@/lib/repeat";
+import { addDaysToKey, weekdayOfKey } from "@/lib/repeat";
+import { isDateKey } from "@/lib/schedule";
 import { useCategories } from "@/lib/useCategories";
 import { dateKey } from "@/lib/week";
 import type { Todo, TodoStatus } from "@/types";
 
-const TABS: { key: string; label: string }[] = [
-  { key: "active", label: "진행 중" },
-  { key: "done", label: "완료" },
-  { key: "all", label: "전체" },
-];
+const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+function dayLabel(key: string): string {
+  const [, m, d] = key.split("-").map(Number);
+  return `${m}월 ${d}일 (${WEEKDAY_NAMES[weekdayOfKey(key)]})`;
+}
 
 function DailyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const status = searchParams.get("status") ?? "active";
+  const today = dateKey();
+  const dateParam = searchParams.get("date");
+  const day = isDateKey(dateParam) ? dateParam : today;
 
   const [todos, setTodos] = useState<Todo[]>([]);
+  // 날짜 미정 items already done when the list loaded — hidden so the list
+  // doesn't pile up, while one checked off just now stays until reload.
+  const [doneAtLoad, setDoneAtLoad] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -30,21 +38,22 @@ function DailyPageContent() {
   const { categories, createCategory, deleteCategory } = useCategories();
 
   function load() {
-    const query = status === "all" ? "" : `?status=${status}`;
-    return fetch(`/api/todos${query}`)
+    return fetch("/api/todos")
       .then((res) => res.json())
-      .then((data) => {
-        // Weeks of 🔁 repeat copies ahead belong on the calendar, not here.
-        setTodos(data.filter((t: Todo) => !isUpcomingRepeat(t, dateKey())));
+      .then((data: Todo[]) => {
+        setTodos(data);
+        setDoneAtLoad(new Set(data.filter((t) => t.status === "DONE").map((t) => t._id)));
         setLoading(false);
       });
   }
 
   useEffect(() => {
-    setLoading(true);
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, []);
+
+  function goToDay(key: string) {
+    router.replace(key === today ? "/daily" : `/daily?date=${key}`);
+  }
 
   // Creates a standalone 일간 목표 not tied to any 연간 목표/주간 목표 — for
   // routines (출근, 운동), appointments, or one-off events (토익 등) that
@@ -86,10 +95,63 @@ function DailyPageContent() {
     }
   }
 
-  // 🔁 templates are never checked off themselves — each copy placed on the
-  // calendar has its own status (see src/lib/recurring.ts).
-  const countable = todos.filter((t) => !t.isRecurring);
-  const doneCount = countable.filter(isDoneToday).length;
+  const dayTodos = todosOnDay(todos, day);
+  const dayDone = dayTodos.filter((t) => t.status === "DONE").length;
+  // Not on any day yet: the 🔁 templates and whatever still waits in the
+  // calendar tray to be dragged onto a day.
+  const undated = todos.filter(
+    (t) => t.isRecurring || (!t.scheduledDate && !doneAtLoad.has(t._id))
+  );
+
+  function renderTodo(todo: Todo) {
+    const done = isDoneToday(todo);
+    const cat = resolveCategoryStyle(todo.category, categories);
+    return (
+      <li key={todo._id}>
+        <Link
+          href={`/todos/${todo._id}`}
+          className={`flex items-center gap-3 rounded-md border px-4 py-3 transition-shadow hover:shadow-elevated ${
+            done
+              ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
+              : "border-hairline"
+          }`}
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${cat.dot}`} aria-hidden />
+          {todo.isRecurring ? (
+            <span className="w-4 text-center text-sm" title="반복 일정" aria-hidden>
+              🔁
+            </span>
+          ) : (
+            <input
+              type="checkbox"
+              checked={done}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleDone(todo._id, e.target.checked);
+              }}
+              className="h-4 w-4 accent-emerald-600"
+            />
+          )}
+          {todo.scheduledDate === day && todo.startTime && (
+            <span className="w-11 shrink-0 text-xs tabular-nums text-muted">{todo.startTime}</span>
+          )}
+          <span
+            className={`flex-1 ${
+              done ? "text-emerald-700 line-through dark:text-emerald-400" : "text-ink"
+            }`}
+          >
+            {todo.title}
+          </span>
+          <span
+            className={`text-xs ${done ? "text-emerald-600 dark:text-emerald-400" : "text-muted"}`}
+          >
+            {todo.isRecurring ? "반복" : effectiveStatus(todo)}
+          </span>
+        </Link>
+      </li>
+    );
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -133,84 +195,73 @@ function DailyPageContent() {
         </p>
       </form>
 
-      <div className="flex gap-2">
-        {TABS.map((tab) => (
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => goToDay(addDaysToKey(day, -1))}
+          aria-label="이전 날"
+          className="rounded-sm border border-hairline px-3 py-1.5 text-sm text-ink hover:bg-surface-soft"
+        >
+          ◀
+        </button>
+        <input
+          type="date"
+          aria-label="날짜 선택"
+          value={day}
+          onChange={(e) => isDateKey(e.target.value) && goToDay(e.target.value)}
+          className="rounded-sm border border-hairline bg-canvas px-3 py-1.5 text-sm text-ink"
+        />
+        <button
+          onClick={() => goToDay(addDaysToKey(day, 1))}
+          aria-label="다음 날"
+          className="rounded-sm border border-hairline px-3 py-1.5 text-sm text-ink hover:bg-surface-soft"
+        >
+          ▶
+        </button>
+        {day !== today && (
           <button
-            key={tab.key}
-            onClick={() => router.push(`/daily?status=${tab.key}`)}
-            className={`rounded-sm px-3 py-1.5 text-sm ${
-              status === tab.key
-                ? "bg-primary font-medium text-on-primary"
-                : "border border-hairline text-ink"
-            }`}
+            onClick={() => goToDay(today)}
+            className="rounded-sm bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-active"
           >
-            {tab.label}
+            오늘
           </button>
-        ))}
+        )}
       </div>
 
       {loading ? (
         <p className="text-body-text">불러오는 중...</p>
       ) : (
         <>
-          {countable.length > 0 && (
-            <p className="text-sm text-muted">
-              {doneCount} / {countable.length} 완료
-            </p>
+          <section className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-semibold text-ink">
+                {day === today ? "오늘" : dayLabel(day)}
+                {day === today && <span className="ml-2 text-sm font-normal text-muted">{dayLabel(day)}</span>}
+              </h2>
+              {dayTodos.length > 0 && (
+                <p className="text-sm text-muted">
+                  {dayDone} / {dayTodos.length} 완료 ({dailyProgress(todos, day)}%)
+                </p>
+              )}
+            </div>
+            <ul className="flex flex-col gap-2">
+              {dayTodos.map(renderTodo)}
+              {dayTodos.length === 0 && (
+                <p className="text-sm text-muted">이 날 캘린더에 올린 일정이 없습니다.</p>
+              )}
+            </ul>
+          </section>
+
+          {undated.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="font-semibold text-ink">
+                날짜 미정
+                <span className="ml-2 text-sm font-normal text-muted">
+                  캘린더에 아직 올리지 않은 일정이에요
+                </span>
+              </h2>
+              <ul className="flex flex-col gap-2">{undated.map(renderTodo)}</ul>
+            </section>
           )}
-          <ul className="flex flex-col gap-2">
-            {todos.map((todo) => {
-              const done = isDoneToday(todo);
-              const cat = resolveCategoryStyle(todo.category, categories);
-              return (
-                <li key={todo._id}>
-                  <Link
-                    href={`/todos/${todo._id}`}
-                    className={`flex items-center gap-3 rounded-md border px-4 py-3 transition-shadow hover:shadow-elevated ${
-                      done
-                        ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
-                        : "border-hairline"
-                    }`}
-                  >
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${cat.dot}`} aria-hidden />
-                    {todo.isRecurring ? (
-                      <span className="w-4 text-center text-sm" title="반복 일정" aria-hidden>
-                        🔁
-                      </span>
-                    ) : (
-                      <input
-                        type="checkbox"
-                        checked={done}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleDone(todo._id, e.target.checked);
-                        }}
-                        className="h-4 w-4 accent-emerald-600"
-                      />
-                    )}
-                    <span
-                      className={`flex-1 ${
-                        done ? "text-emerald-700 line-through dark:text-emerald-400" : "text-ink"
-                      }`}
-                    >
-                      {todo.title}
-                    </span>
-                    <span
-                      className={`text-xs ${
-                        done ? "text-emerald-600 dark:text-emerald-400" : "text-muted"
-                      }`}
-                    >
-                      {todo.isRecurring ? "반복" : effectiveStatus(todo)}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-            {todos.length === 0 && (
-              <p className="text-sm text-muted">표시할 일간 목표가 없습니다.</p>
-            )}
-          </ul>
         </>
       )}
     </main>

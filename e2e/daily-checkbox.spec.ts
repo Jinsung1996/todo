@@ -24,7 +24,8 @@ test("할 일 목록에서 체크박스로 완료 표시하면 초록색으로 �
   await page.getByRole("button", { name: "추가" }).click();
   await expect(page.getByText(todoName)).toBeVisible();
 
-  await page.goto("/daily?status=all");
+  // Not on the calendar yet, so it sits under 날짜 미정.
+  await page.goto("/daily");
   const row = page.locator("li", { hasText: todoName });
   const checkbox = row.getByRole("checkbox");
 
@@ -37,18 +38,23 @@ test("할 일 목록에서 체크박스로 완료 표시하면 초록색으로 �
   await checkbox.check();
   await patchResponse;
 
-  // Checked items turn green and stay visible in the "all" tab so progress is visible at a glance.
+  // Checked items turn green and stay visible until the page reloads.
   await expect(row.locator("a")).toHaveClass(/bg-emerald-50/);
   await expect(row.getByText(todoName)).toHaveClass(/line-through/);
 
-  await page.reload();
-  const reloadedRow = page.locator("li", { hasText: todoName });
-  await expect(reloadedRow.getByRole("checkbox")).toBeChecked();
-  await expect(reloadedRow.locator("a")).toHaveClass(/bg-emerald-50/);
-
   // Unchecking reverts it back to an active (non-green) todo.
-  await reloadedRow.getByRole("checkbox").uncheck();
-  await expect(reloadedRow.locator("a")).not.toHaveClass(/bg-emerald-50/);
+  const unchecked = page.waitForResponse((res) => res.request().method() === "PATCH");
+  await row.getByRole("checkbox").uncheck();
+  await unchecked;
+  await expect(row.locator("a")).not.toHaveClass(/bg-emerald-50/);
+
+  // Once done, a 날짜 미정 item no longer clutters the list after a reload.
+  const saved = page.waitForResponse((res) => res.request().method() === "PATCH");
+  await row.getByRole("checkbox").check();
+  await saved;
+  await page.reload();
+  await expect(page.getByRole("heading", { name: /오늘/ })).toBeVisible();
+  await expect(page.locator("li", { hasText: todoName })).toHaveCount(0);
 
   await deleteGoalByTitle(page, goalName);
 });

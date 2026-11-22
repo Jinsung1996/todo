@@ -8,7 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { TodayAgenda } from "@/components/TodayAgenda";
 import { MobileDay } from "@/components/MobileDay";
 import { PlannerCalendar } from "@/components/PlannerCalendar";
-import { weeklyProgress } from "@/lib/progress";
+import { dailyProgress } from "@/lib/progress";
 import { isActiveToday } from "@/lib/recurring";
 import { useCategories } from "@/lib/useCategories";
 import { useIsMobile } from "@/lib/useIsMobile";
@@ -79,7 +79,7 @@ export default function DashboardPage() {
 
   const thisWeekPlans = weeks.filter(isThisWeek);
   const todayCount = todos.filter(isActiveToday).length;
-  const completionPercent = weeklyProgress(todos);
+  const completionPercent = dailyProgress(todos);
   const recentGoals = goals.slice(0, 5);
 
   return (
@@ -122,7 +122,7 @@ export default function DashboardPage() {
         </NotepadCard>
 
         <StatCard href="/daily" label="오늘 일간 목표 수" value={todayCount} />
-        <StatCard href="/daily?status=done" label="완료(%)" value={completionPercent} suffix="%" />
+        <StatCard href="/daily" label="오늘 완료(%)" value={completionPercent} suffix="%" />
       </div>
 
       <div className="flex flex-1 items-stretch gap-3">
