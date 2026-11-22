@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
-  const { title, weekStart, weekEnd } = parsed.data;
+  const { title, weekStart, weekEnd, completed } = parsed.data;
 
   const update: Record<string, unknown> = {};
   if (title !== undefined) {
@@ -63,6 +63,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "weekEnd must be a valid date" }, { status: 400 });
     }
     update.weekEnd = weekEnd;
+  }
+
+  if (completed !== undefined) {
+    if (typeof completed !== "boolean") {
+      return NextResponse.json({ error: "completed must be a boolean" }, { status: 400 });
+    }
+    update.completed = completed;
   }
 
   await dbConnect();

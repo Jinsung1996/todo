@@ -55,6 +55,17 @@ export default function GoalDetailPage() {
     load();
   }
 
+  async function toggleComplete(week: WeeklyPlan) {
+    const completed = !week.completed;
+    setWeeks((prev) => prev.map((w) => (w._id === week._id ? { ...w, completed } : w)));
+    const res = await fetch(`/api/goals/${goalId}/weeks/${week._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed }),
+    });
+    if (!res.ok) load();
+  }
+
   if (loading) return <main className="p-4 sm:p-8 text-body-text">불러오는 중...</main>;
   if (!goal) return <main className="p-4 sm:p-8 text-body-text">목표를 찾을 수 없습니다.</main>;
 
@@ -67,6 +78,11 @@ export default function GoalDetailPage() {
         <h1 className="text-2xl font-bold text-ink">
           {goal.title} <span className="text-muted">({goal.year})</span>
         </h1>
+        {weeks.length > 0 && (
+          <p className="text-sm text-muted">
+            주간 목표 완료 {weeks.filter((w) => w.completed).length} / {weeks.length}
+          </p>
+        )}
       </div>
 
       <form onSubmit={createWeek} className="flex flex-wrap gap-2">
@@ -102,15 +118,29 @@ export default function GoalDetailPage() {
             key={week._id}
             className="flex items-center justify-between rounded-md border border-hairline px-4 py-3 transition-shadow hover:shadow-elevated"
           >
-            <Link href={`/goals/${goalId}/weeks/${week._id}`} className="flex-1 text-ink">
-              {week.title}
-            </Link>
-            <button
-              onClick={() => deleteWeek(week._id)}
-              className="text-sm text-error hover:text-error-hover"
+            <Link
+              href={`/goals/${goalId}/weeks/${week._id}`}
+              className="flex-1"
             >
-              삭제
-            </button>
+              {week.completed && <span className="mr-1 text-primary">✓</span>}
+              <span className={week.completed ? "text-muted line-through" : "text-ink"}>
+                {week.title}
+              </span>
+            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => toggleComplete(week)}
+                className="text-sm text-muted hover:text-primary"
+              >
+                {week.completed ? "완료 취소" : "완료"}
+              </button>
+              <button
+                onClick={() => deleteWeek(week._id)}
+                className="text-sm text-error hover:text-error-hover"
+              >
+                삭제
+              </button>
+            </div>
           </li>
         ))}
         {weeks.length === 0 && (

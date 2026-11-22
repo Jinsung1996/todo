@@ -5,6 +5,7 @@ const WeeklyPlanSchema = new Schema(
     title: { type: String, required: true },
     weekStart: { type: Date, required: true },
     weekEnd: { type: Date, required: true },
+    completed: { type: Boolean, default: false },
     yearlyGoalId: {
       type: Schema.Types.ObjectId,
       ref: "YearlyGoal",

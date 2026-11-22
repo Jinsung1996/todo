@@ -36,7 +36,16 @@ export default function WeeksPage() {
                   className="flex flex-col gap-2 rounded-md border border-hairline px-4 py-3 transition-shadow hover:shadow-elevated"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-ink">{week.title}</span>
+                    <span>
+                      {week.completed && <span className="mr-1 text-primary">✓</span>}
+                      <span
+                        className={
+                          week.completed ? "font-medium text-muted line-through" : "font-medium text-ink"
+                        }
+                      >
+                        {week.title}
+                      </span>
+                    </span>
                     <span className="text-sm text-muted">
                       {typeof goal === "string" ? "" : goal.title}
                     </span>
