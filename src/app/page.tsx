@@ -145,7 +145,7 @@ export default function DashboardPage() {
             onCreateOnDate={createOnDate}
           />
         </section>
-        <TodayAgenda date={new Date()} todos={todos} />
+        <TodayAgenda date={new Date()} todos={todos} goals={goals} />
       </div>
     </main>
   );

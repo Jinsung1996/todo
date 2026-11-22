@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { weeklyProgress } from "@/lib/progress";
 import { isActiveToday } from "@/lib/recurring";
-import type { Todo, TodoStatus } from "@/types";
+import type { Todo, TodoStatus, YearlyGoal } from "@/types";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]; // Date#getDay(): 0=Sun
 
@@ -29,14 +28,51 @@ function formatDateHeading(date: Date): string {
   return `${month}월 ${day}일 ${weekday}요일`;
 }
 
-export function TodayAgenda({ date, todos }: { date: Date; todos: Todo[] }) {
+function ProgressBox({
+  label,
+  done,
+  total,
+  ...rest
+}: {
+  label: string;
+  done: number;
+  total: number;
+  [dataAttr: `data-${string}`]: boolean;
+}) {
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  return (
+    <div {...rest} className="flex flex-col gap-1 rounded-sm bg-surface-soft p-2">
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs text-muted">{label}</span>
+        <span className="text-[11px] text-muted">
+          {done} / {total}
+        </span>
+      </div>
+      <span className="text-2xl font-bold text-ink">{percent}%</span>
+      <div className="h-2 rounded-full bg-surface-strong">
+        <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export function TodayAgenda({
+  date,
+  todos,
+  goals,
+}: {
+  date: Date;
+  todos: Todo[];
+  goals: YearlyGoal[];
+}) {
   // isActiveToday always means *today* specifically — this panel is always
   // meant to show today, so `date` is really just for the heading.
   const items = todos
     .filter((t): t is Todo & { startTime: string } => isActiveToday(t) && Boolean(t.startTime))
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
   const doneCount = items.filter((t) => t.status === "DONE").length;
-  const percent = weeklyProgress(items);
+  const year = date.getFullYear();
+  const yearGoals = goals.filter((g) => g.year === year);
 
   return (
     <aside
@@ -47,20 +83,15 @@ export function TodayAgenda({ date, todos }: { date: Date; todos: Todo[] }) {
         <p className="text-xs text-muted">오늘</p>
         <h2 className="text-base font-bold text-ink">{formatDateHeading(date)}</h2>
       </div>
-      <div data-today-progress className="flex flex-col gap-1 rounded-sm bg-surface-soft p-2">
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs text-muted">일간 완료</span>
-          <span className="text-[11px] text-muted">
-            {doneCount} / {items.length}
-          </span>
-        </div>
-        <span className="text-2xl font-bold text-ink">{percent}%</span>
-        <div className="h-2 rounded-full bg-surface-strong">
-          <div
-            className="h-2 rounded-full bg-primary transition-all"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
+      <ProgressBox data-today-progress label="일간 완료" done={doneCount} total={items.length} />
+      <div className="flex flex-col gap-1">
+        <p className="text-xs text-muted">{year}년</p>
+        <ProgressBox
+          data-year-progress
+          label="연간 완료"
+          done={yearGoals.filter((g) => g.completed).length}
+          total={yearGoals.length}
+        />
       </div>
       <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
         {items.map((todo) => {
