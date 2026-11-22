@@ -5,6 +5,7 @@ const YearlyGoalSchema = new Schema(
     title: { type: String, required: true },
     description: { type: String },
     year: { type: Number, required: true },
+    completed: { type: Boolean, default: false },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: false, index: true }, // unset = legacy, pre-ownership (see claimOrphanGoals)
   },
   { timestamps: true }

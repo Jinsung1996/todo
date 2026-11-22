@@ -42,6 +42,17 @@ export default function GoalsPage() {
     load();
   }
 
+  async function toggleComplete(goal: YearlyGoal) {
+    const completed = !goal.completed;
+    setGoals((prev) => prev.map((g) => (g._id === goal._id ? { ...g, completed } : g)));
+    const res = await fetch(`/api/goals/${goal._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed }),
+    });
+    if (!res.ok) load();
+  }
+
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelected(new Set());
@@ -85,7 +96,14 @@ export default function GoalsPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink">연간 목표</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-2xl font-bold text-ink">연간 목표</h1>
+          {goals.length > 0 && (
+            <span className="text-sm text-muted">
+              완료 {goals.filter((g) => g.completed).length} / {goals.length}
+            </span>
+          )}
+        </div>
         {goals.length > 0 && (
           <button onClick={toggleSelectMode} className="text-sm text-muted hover:text-primary">
             {selectMode ? "취소" : "여러 개 삭제"}
@@ -152,15 +170,30 @@ export default function GoalsPage() {
               ) : (
                 <>
                   <Link href={`/goals/${goal._id}`} className="flex-1">
-                    <span className="font-medium text-ink">{goal.title}</span>{" "}
+                    {goal.completed && <span className="mr-1 text-primary">✓</span>}
+                    <span
+                      className={
+                        goal.completed ? "font-medium text-muted line-through" : "font-medium text-ink"
+                      }
+                    >
+                      {goal.title}
+                    </span>{" "}
                     <span className="text-sm text-muted">{goal.year}</span>
                   </Link>
-                  <button
-                    onClick={() => deleteGoal(goal._id)}
-                    className="text-sm text-error hover:text-error-hover"
-                  >
-                    삭제
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => toggleComplete(goal)}
+                      className="text-sm text-muted hover:text-primary"
+                    >
+                      {goal.completed ? "완료 취소" : "완료"}
+                    </button>
+                    <button
+                      onClick={() => deleteGoal(goal._id)}
+                      className="text-sm text-error hover:text-error-hover"
+                    >
+                      삭제
+                    </button>
+                  </div>
                 </>
               )}
             </li>

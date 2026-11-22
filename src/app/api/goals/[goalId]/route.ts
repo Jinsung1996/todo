@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const parsed = await parseJsonBody(request);
   if (!parsed.ok) return parsed.response;
-  const { title, description, year } = parsed.data;
+  const { title, description, year, completed } = parsed.data;
 
   const update: Record<string, unknown> = {};
   if (title !== undefined) {
@@ -59,6 +59,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "year must be a number" }, { status: 400 });
     }
     update.year = year;
+  }
+
+  if (completed !== undefined) {
+    if (typeof completed !== "boolean") {
+      return NextResponse.json({ error: "completed must be a boolean" }, { status: 400 });
+    }
+    update.completed = completed;
   }
 
   await dbConnect();

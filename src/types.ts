@@ -7,6 +7,7 @@ export interface YearlyGoal {
   title: string;
   description?: string;
   year: number;
+  completed?: boolean;
 }
 
 export interface WeeklyPlan {
@@ -15,6 +16,7 @@ export interface WeeklyPlan {
   weekStart: string;
   weekEnd: string;
   yearlyGoalId: string | YearlyGoal;
+  completed?: boolean;
   progress?: number;
 }
 
